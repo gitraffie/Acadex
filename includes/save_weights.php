@@ -82,9 +82,11 @@ try {
     }
 
     // Verify teacher owns this class (security check)
-    $stmt = $pdo->prepare("SELECT id FROM classes WHERE id = ? AND user_email = ?");
+    $stmt = $pdo->prepare("SELECT id, user_email FROM classes WHERE id = ? AND user_email = ?");
     $stmt->execute([$class_id, $teacher_email]);
-    if (!$stmt->fetch()) {
+    $class = $stmt->fetch();
+    
+    if (!$class) {
         http_response_code(403);
         throw new Exception('You do not have permission to set weights for this class');
     }
@@ -93,31 +95,68 @@ try {
     $class_standing = round($class_standing, 2);
     $exam = round($exam, 2);
 
-    // Insert or update weights
-    $stmt = $pdo->prepare("
-        INSERT INTO weights (class_id, teacher_email, class_standing, exam, created_at, updated_at)
-        VALUES (?, ?, ?, ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-            class_standing = VALUES(class_standing),
-            exam = VALUES(exam),
-            updated_at = NOW()
-    ");
-    
-    $stmt->execute([$class_id, $teacher_email, $class_standing, $exam]);
+    // Begin transaction for data consistency
+    $pdo->beginTransaction();
 
-    // Clean output buffer
-    ob_clean();
+    try {
+        // Check if weights already exist for this class
+        $checkStmt = $pdo->prepare("SELECT id FROM weights WHERE class_id = ?");
+        $checkStmt->execute([$class_id]);
+        $existingWeight = $checkStmt->fetch();
 
-    echo json_encode([
-        'success' => true,
-        'message' => 'Weights saved successfully',
-        'weights' => [
-            'class_standing' => $class_standing,
-            'exam' => $exam
-        ]
-    ]);
+        if ($existingWeight) {
+            // UPDATE existing record
+            $stmt = $pdo->prepare("
+                UPDATE weights 
+                SET class_standing = ?, 
+                    exam = ?, 
+                    teacher_email = ?,
+                    updated_at = NOW()
+                WHERE class_id = ?
+            ");
+            $stmt->execute([$class_standing, $exam, $teacher_email, $class_id]);
+            $action = 'updated';
+        } else {
+            // INSERT new record
+            $stmt = $pdo->prepare("
+                INSERT INTO weights (class_id, teacher_email, class_standing, exam, created_at, updated_at)
+                VALUES (?, ?, ?, ?, NOW(), NOW())
+            ");
+            $stmt->execute([$class_id, $teacher_email, $class_standing, $exam]);
+            $action = 'created';
+        }
+
+        // Commit transaction
+        $pdo->commit();
+
+        // Clean output buffer
+        ob_clean();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Weights ' . $action . ' successfully',
+            'action' => $action,
+            'weights' => [
+                'class_standing' => $class_standing,
+                'exam' => $exam,
+                'total' => $class_standing + $exam
+            ]
+        ]);
+
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
 
 } catch (PDOException $e) {
+    // Rollback transaction if still active
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
     ob_clean();
     http_response_code(500);
     error_log('Database error in save_weights.php: ' . $e->getMessage());
