@@ -32,6 +32,7 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         * {
             margin: 0;
@@ -1851,6 +1852,30 @@ try {
 
                 if (result.success) {
                     showResults(result);
+                    
+                    // Trigger recalculation for specific term imports
+                    if (mode === 'specific_term') {
+                        console.log('Triggering grade recalculation after specific term import...');
+                        try {
+                            const recalcResponse = await fetch('../includes/recalculate_grades.php', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    class_id: currentClassId
+                                })
+                            });
+                            
+                            if (recalcResponse.ok) {
+                                const recalcResult = await recalcResponse.json();
+                                console.log('Recalculation result:', recalcResult);
+                            }
+                        } catch (error) {
+                            console.error('Error during auto-recalculation:', error);
+                        }
+                    }
+                    
                     await loadClassGrades(); // Reload the grade table
                 } else {
                     throw new Error(result.message || 'Import failed');
@@ -2324,6 +2349,7 @@ try {
             }
         }
 
+        // Updated editStudentGrades function - handles array response format
         async function editStudentGrades(studentId) {
             const student = currentStudents.find(s => s.id == studentId);
             if (!student) {
@@ -2350,24 +2376,26 @@ try {
                     throw new Error('Invalid server response');
                 }
 
-                // Store all student grades data for term switching
+                // Convert array response to object keyed by term
                 let allStudentGrades = {};
-
-                // Check if we have grades for this student
-                if (data.success && data.grades[studentId]) {
-                    allStudentGrades = data.grades[studentId];
-                    console.log('Student grades data:', allStudentGrades);
+                
+                if (data.success && data.grades && Array.isArray(data.grades)) {
+                    // Transform array format to object format keyed by term
+                    data.grades.forEach(grade => {
+                        const termKey = grade.term.toLowerCase();
+                        allStudentGrades[termKey] = {
+                            class_standing: grade.class_standing || '',
+                            exam: grade.exam || ''
+                        };
+                    });
+                    console.log('Transformed student grades data:', allStudentGrades);
                 }
 
                 // Function to get grades for a specific term
                 function getTermGrades(term) {
-                    if (allStudentGrades.terms) {
-                        // Find the key that matches case-insensitively
-                        const termKeys = Object.keys(allStudentGrades.terms);
-                        const matchingKey = termKeys.find(key => key.toLowerCase() === term.toLowerCase());
-                        if (matchingKey) {
-                            return allStudentGrades.terms[matchingKey];
-                        }
+                    const termKey = term.toLowerCase();
+                    if (allStudentGrades[termKey]) {
+                        return allStudentGrades[termKey];
                     }
                     return {
                         class_standing: '',
@@ -2377,7 +2405,11 @@ try {
 
                 // Get grades for the current term (default to prelim)
                 let termGrades = getTermGrades("prelim");
-                console.log('Found grades for term:', "prelim", termGrades);
+                console.log('Found grades for term: prelim', termGrades);
+
+                // Convert weights from decimals to percentages for display
+                const classStandingPercent = (weights.class_standing * 100).toFixed(1);
+                const examPercent = (weights.exam * 100).toFixed(1);
 
                 // Generate the edit form with pre-populated values
                 const formHtml = `
@@ -2400,11 +2432,11 @@ try {
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="class_standing">Class Standing (70%)</label>
+                                <label for="class_standing">Class Standing (${classStandingPercent}%)</label>
                                 <input type="number" id="class_standing" name="class_standing" min="0" max="100" step="0.01" value="${termGrades.class_standing || ''}" class="grade-input" placeholder="0-100">
                             </div>
                             <div class="form-group">
-                                <label for="exam">Periodic Exams (30%)</label>
+                                <label for="exam">Periodic Exams (${examPercent}%)</label>
                                 <input type="number" id="exam" name="exam" min="0" max="100" step="0.01" value="${termGrades.exam || ''}" class="grade-input" placeholder="0-100">
                             </div>
                         </div>
@@ -2563,11 +2595,13 @@ try {
 
                     // Reload calculated grades to reflect updates
                     try {
-                        const calGradesResponse = await fetch(`../includes/get_cal_grades.php?class_id=${currentClassId}`);
+                        const calGradesResponse = await fetch(`../includes/get_gwa.php?class_id=${currentClassId}`);
                         if (calGradesResponse.ok) {
                             const calGradesText = await calGradesResponse.text();
+                            console.log('Calculated grades reload response:', calGradesText);
+                            
                             const calGradesData = JSON.parse(calGradesText);
-                            if (calGradesData.success) {
+                            if (calGradesData.success && Array.isArray(calGradesData.calculated_grades)) {
                                 currentCalculatedGrades = {};
                                 calGradesData.calculated_grades.forEach(grade => {
                                     currentCalculatedGrades[grade.student_number] = {
@@ -2577,6 +2611,9 @@ try {
                                         final_grade: grade.final_grade || 0
                                     };
                                 });
+                                console.log('Updated calculated grades:', currentCalculatedGrades);
+                            } else {
+                                console.error('Invalid calculated grades data structure:', calGradesData);
                             }
                         }
                     } catch (e) {
@@ -2784,12 +2821,20 @@ try {
                     throw new Error('Invalid server response');
                 }
 
-                if (data.success && data.grades[studentId]) {
-                    currentEmailStudentGrades = data.grades[studentId];
+                if (data.success && data.grades && Array.isArray(data.grades)) {
+                    // Transform array format to object format keyed by term
+                    currentEmailStudentGrades = {};
+                    data.grades.forEach(grade => {
+                        const termKey = grade.term.toLowerCase();
+                        currentEmailStudentGrades[termKey] = {
+                            class_standing: grade.class_standing || '',
+                            exam: grade.exam || ''
+                        };
+                    });
                     console.log('Loaded student grades for email:', currentEmailStudentGrades);
                 } else {
                     currentEmailStudentGrades = {};
-                    console.error('Failed to load student grades for email:', data.message);
+                    console.error('Failed to load student grades for email:', data.message || 'Unknown error');
                 }
             } catch (error) {
                 console.error('Error loading student grades for email:', error);
@@ -2814,8 +2859,8 @@ try {
                 return;
             }
 
-            // Get the grades for the selected term
-            const termGrades = currentGradesMap[studentId]?.terms?.[normalizedTerm];
+            // Get the grades for the selected term from email grades data
+            const termGrades = currentEmailStudentGrades[normalizedTerm];
 
             if (!termGrades) {
                 componentContent.innerHTML = `<p style='color: #666; font-style: italic;'>No grades found for ${term} term.</p>`;
@@ -3863,11 +3908,20 @@ try {
                 if (data.success) {
                     alert('Weights saved successfully!');
 
+                    // Update local weights object
+                    weights = {
+                        class_standing: classStandingDecimal,
+                        exam: examDecimal
+                    };
+
+                    // Show recalculation notice and recalculate all grades
+                    if (confirm('Weights have been updated. Would you like to recalculate all student grades with the new weights?')) {
+                        await recalculateAllGrades();
+                    }
+
                     // Reload weights to verify
                     await loadWeightsContent();
                     
-                    // Reload class grades with new weights
-                    await loadClassGrades();
                 } else {
                     alert('Error saving weights: ' + data.message);
                 }
@@ -3877,6 +3931,57 @@ try {
             }
 
             return false;
+        }
+
+        // New function to recalculate all grades with updated weights
+        async function recalculateAllGrades() {
+            try {
+                // Show loading indicator
+                const originalText = document.body.innerHTML;
+                
+                console.log('Starting grade recalculation with new weights...');
+                
+                // Call recalculation endpoint
+                const response = await fetch('../includes/recalculate_grades.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        class_id: currentClassId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
+                const text = await response.text();
+                console.log('Recalculation response:', text);
+
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    console.error('JSON parse error:', e);
+                    throw new Error('Invalid server response');
+                }
+
+                if (result.success) {
+                    console.log(`Successfully recalculated grades for ${result.students_updated} students`);
+                    
+                    // Reload all class data including calculated grades
+                    await loadClassGrades();
+                    
+                    alert(`Grade recalculation completed! Updated ${result.students_updated} student records.`);
+                } else {
+                    console.error('Recalculation failed:', result.message);
+                    alert('Error during grade recalculation: ' + result.message + '\n\nYou may need to manually recalculate grades.');
+                }
+            } catch (error) {
+                console.error('Error recalculating grades:', error);
+                alert('Error recalculating grades: ' + error.message + '\n\nPlease try again or contact support.');
+            }
         }
     </script>
 </body>

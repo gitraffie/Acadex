@@ -103,8 +103,8 @@ try {
     ob_clean();
 
     echo json_encode([
-        'success' => true, 
-        'calculated_grades' => $calculated_grades,
+        'success' => true,
+        'grades' => $calculated_grades,
         'count' => count($calculated_grades)
     ]);
 

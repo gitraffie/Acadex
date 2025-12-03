@@ -30,6 +30,7 @@ try {
     <title>Attendance Management - Acadex</title>
     <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         * {
             margin: 0;

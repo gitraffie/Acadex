@@ -81,25 +81,16 @@ try {
     $stmt->execute($params);
     $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Format grades data
+    // Format grades data as flat array
     $grades = [];
     foreach ($results as $row) {
-        $student_id_key = $row['student_id'];
-        
-        // Initialize student array if not exists
-        if (!isset($grades[$student_id_key])) {
-            $grades[$student_id_key] = [
-                'student_number' => $row['student_number'],
-                'student_name' => $row['first_name'] . ' ' . $row['last_name'],
-                'terms' => []
-            ];
-        }
-
-        // Add term data
-        $term = $row['term'] ?? 'Unknown';
-        $grades[$student_id_key]['terms'][$term] = [
+        $grades[] = [
+            'student_id' => $row['student_id'],
+            'student_number' => $row['student_number'],
+            'term' => $row['term'] ?? 'Unknown',
             'class_standing' => $row['class_standing'] ?? '',
-            'exam' => $row['exam'] ?? ''
+            'exam' => $row['exam'] ?? '',
+            'student_name' => $row['first_name'] . ' ' . $row['last_name']
         ];
     }
 

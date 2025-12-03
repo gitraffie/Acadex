@@ -29,6 +29,7 @@ try {
     <title>My Classes - Acadex</title>
     <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         * {
             margin: 0;
@@ -1345,18 +1346,18 @@ try {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message);
+                    Swal.fire('Success', data.message, 'success');
                     closeModal();
                     this.reset();
                     // Optionally refresh the page or update the classes list
                     location.reload();
                 } else {
-                    alert(data.message);
+                    Swal.fire('Error', data.message, 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred while adding the class.');
+                Swal.fire('Error', 'An error occurred while adding the class.', 'error');
             });
         });
 
@@ -1473,7 +1474,7 @@ try {
             const tableBody = document.getElementById('gradesTableBody');
             const noGradesMessage = document.getElementById('noGradesMessage');
 
-            if (grades.length > 0) {
+            if (grades && Array.isArray(grades) && grades.length > 0) {
                 tableBody.innerHTML = '';
                 grades.forEach(grade => {
                     const row = document.createElement('tr');
@@ -1502,7 +1503,7 @@ try {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        renderGradesTable(data.calculated_grades);
+                        renderGradesTable(data.grades);
                     } else {
                         alert(data.message);
                     }

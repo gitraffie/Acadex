@@ -26,7 +26,24 @@ try {
     // Fetch students for the class
     $stmt = $pdo->prepare("SELECT id, student_number, student_email, first_name, last_name, middle_initial, suffix, program FROM students WHERE class_id = ? AND teacher_email  = ? ORDER BY last_name, first_name");
     $stmt->execute([$classId, $_SESSION['email']]);
-    $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $rawStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Format students data with full_name
+    $students = [];
+    foreach ($rawStudents as $student) {
+        $fullName = trim($student['first_name'] . ' ' . ($student['middle_initial'] ? $student['middle_initial'] . ' ' : '') . $student['last_name'] . ($student['suffix'] ? ' ' . $student['suffix'] : ''));
+        $students[] = [
+            'id' => $student['id'],
+            'student_number' => $student['student_number'],
+            'student_email' => $student['student_email'],
+            'first_name' => $student['first_name'],
+            'last_name' => $student['last_name'],
+            'middle_initial' => $student['middle_initial'],
+            'suffix' => $student['suffix'],
+            'program' => $student['program'],
+            'full_name' => $fullName
+        ];
+    }
 
     echo json_encode(['success' => true, 'students' => $students]);
 
