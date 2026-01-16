@@ -2,8 +2,13 @@
 include 'connection.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Teacher self-registration is disabled; redirect to login with a friendly message
+    header('Location: ../auth/teacher-login.php?error=' . urlencode('Teacher accounts are now created by administrators. Please contact your admin for access.'));
+    exit();
+
     // Get form data
-    $fullName = trim($_POST['fullName'] ?? '');
+    $firstName = trim($_POST['firstName'] ?? '');
+    $lastName = trim($_POST['lastName'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['confirmPassword'] ?? '';
@@ -11,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Server-side validation
     $errors = [];
 
-    if (empty($fullName) || strlen($fullName) < 2) {
-        $errors[] = 'Full name must be at least 2 characters long';
+    if (empty($firstName) || empty($lastName)) {
+        $errors[] = 'First name and last name are required';
     }
 
     if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -44,8 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         try {
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT INTO users (full_name, email, password, user_type, created_at) VALUES (?, ?, ?, 'teacher', NOW())");
-            $stmt->execute([$fullName, $email, $hashedPassword]);
+            $fullName = trim($firstName . ' ' . $lastName);
+            $stmt = $pdo->prepare("INSERT INTO users (first_name, last_name, full_name, email, password, user_type, created_at) VALUES (?, ?, ?, ?, ?, 'teacher', NOW())");
+            $stmt->execute([$firstName, $lastName, $fullName, $email, $hashedPassword]);
 
             // Success - redirect to teacher dashboard
             header('Location: ../auth/teacher-login.php?success=1');

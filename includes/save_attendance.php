@@ -44,15 +44,30 @@ try {
 
         $studentNumber = $student['student_number'];
 
-        // Insert or update attendance record
-        $stmt = $pdo->prepare("
-            INSERT INTO attendance (class_id, student_id, student_number, attendance_date, session, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-            status = VALUES(status),
-            updated_at = CURRENT_TIMESTAMP
+        // Check if attendance record already exists using unique combination
+        $checkStmt = $pdo->prepare("
+            SELECT id FROM attendance
+            WHERE student_id = ? AND attendance_date = ? AND session = ? AND class_id = ?
         ");
-        $stmt->execute([$classId, $studentId, $studentNumber, $date, $session, $status]);
+        $checkStmt->execute([$studentId, $date, $session, $classId]);
+        $existingRecord = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingRecord) {
+            // UPDATE existing record
+            $updateStmt = $pdo->prepare("
+                UPDATE attendance
+                SET status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ");
+            $updateStmt->execute([$status, $existingRecord['id']]);
+        } else {
+            // INSERT new record
+            $insertStmt = $pdo->prepare("
+                INSERT INTO attendance (class_id, student_id, student_number, attendance_date, session, status)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $insertStmt->execute([$classId, $studentId, $studentNumber, $date, $session, $status]);
+        }
     }
 
     $pdo->commit();
@@ -92,7 +107,8 @@ try {
                     $teacherName,
                     $class['class_name'],
                     $class['section'],
-                    $class['term']
+                    $class['term'],
+                    $classId
                 );
                 $emailResults[] = $emailResult;
             }

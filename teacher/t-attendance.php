@@ -11,6 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 // Get user details from session
 $userFullName = $_SESSION['full_name'] ?? 'Unknown User';
 $userEmail = $_SESSION['email'] ?? 'Unknown Email';
+include '../includes/teacher_requests.php';
 
 // Fetch classes for the current teacher
 try {
@@ -31,1082 +32,23 @@ try {
     <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-            color: #333;
-        }
-
-        /* Sidebar Navigation */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 260px;
-            height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem 0;
-            z-index: 1000;
-            transition: all 0.3s ease;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .sidebar.collapsed {
-            width: 80px;
-        }
-
-        .sidebar.collapsed .user-details h3,
-        .sidebar.collapsed .user-details p,
-        .sidebar.collapsed .nav-link span:not(.nav-icon),
-        .sidebar.collapsed .logo {
-            display: none;
-        }
-
-        .sidebar.collapsed .user-info {
-            justify-content: center;
-        }
-
-        .sidebar.collapsed .user-details {
-            display: none;
-        }
-
-        .sidebar.collapsed .user-avatar {
-            border-radius: 50%;
-            width: 35px;
-            height: 35px;
-        }
-
-        .sidebar-header {
-            padding: 0 1.5rem 2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 0;
-        }
-
-        .sidebar-toggle {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sidebar-toggle::before {
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
-        }
-
-        .sidebar-toggle:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar.collapsed .sidebar-toggle::before {
-            content: '\f054'; /* fa-chevron-right */
-        }
-
-        .sidebar:not(.collapsed) .sidebar-toggle::before {
-            content: '\f0c9'; /* fa-bars */
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            overflow: hidden;
-        }
-
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .user-details h3 {
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 0.2rem;
-        }
-
-        .user-details p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.85rem;
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 1rem 0;
-        }
-
-        .nav-item {
-            margin: 0.3rem 0;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.9rem 1.5rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
-        }
-
-        .nav-link.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 4px;
-            background: white;
-        }
-
-        .nav-icon {
-            font-size: 1.3rem;
-        }
-
-        /* Main Content */
-        .main-content {
-            margin-left: 260px;
-            padding: 2rem;
-            min-height: 100vh;
-            transition: margin-left 0.3s ease;
-        }
-
-        .sidebar.collapsed ~ .main-content {
-            margin-left: 80px;
-        }
-
-        .top-bar {
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .page-title h1 {
-            font-size: 1.8rem;
-            color: #333;
-            margin-bottom: 0.3rem;
-        }
-
-        .page-title p {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .top-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .notification-btn {
-            position: relative;
-            background: #f5f6fa;
-            border: none;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.3rem;
-            transition: all 0.3s ease;
-        }
-
-        .notification-btn:hover {
-            background: #e8eaf0;
-            transform: scale(1.05);
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: #ff4757;
-            color: white;
-            border-radius: 50%;
-            width: 15px;
-            height: 15px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .logout-btn {
-            padding: 0.7rem 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        /* Classes Grid */
-        .classes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .class-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .class-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .class-banner {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 15px 15px 0 0;
-            margin: -1.5rem -1.5rem 1rem -1.5rem;
-        }
-
-        .class-banner h3 {
-            font-size: 1.2rem;
-            color: white;
-            margin-bottom: 0.3rem;
-        }
-
-        .class-banner p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-        }
-
-        .class-stats {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .class-stat {
-            text-align: center;
-        }
-
-        .class-stat-value {
-            font-weight: bold;
-            color: #667eea;
-            font-size: 1.1rem;
-        }
-
-        .class-stat-label {
-            font-size: 0.75rem;
-            color: #999;
-        }
-
-        /* Selected Class Section */
-        .selected-class-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 2rem;
-            padding: 1rem;
-        }
-
-        .selected-class-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
-        }
-
-        .selected-class-header h2 {
-            color: #333;
-            font-size: 1.8rem;
-            margin: 0;
-        }
-
-        .close-selected-btn {
-            background: none;
-            border: none;
-            font-size: 2.5rem;
-            cursor: pointer;
-            color: #999;
-            transition: color 0.3s ease;
-        }
-
-        .close-selected-btn:hover {
-            color: #667eea;
-        }
-
-
-
-        /* Stats Cards */
-        .stats-overview {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-        }
-
-        .stat-card.present::before { background: #28a745; }
-        .stat-card.absent::before { background: #dc3545; }
-        .stat-card.late::before { background: #ffc107; }
-        .stat-card.excused::before { background: #6c757d; }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .stat-card.present .stat-icon { background: rgba(40, 167, 69, 0.1); color: #28a745; }
-        .stat-card.absent .stat-icon { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
-        .stat-card.late .stat-icon { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
-        .stat-card.excused .stat-icon { background: rgba(108, 117, 125, 0.1); color: #6c757d; }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 0.3rem;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        /* Enhanced Controls */
-        .attendance-controls {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 2rem;
-        }
-
-        .controls-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .date-input-wrapper {
-            position: relative;
-        }
-
-        .date-input-wrapper input {
-            padding: 0.75rem 1rem;
-            padding-left: 3rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .date-input-wrapper input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        .date-input-wrapper i {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #667eea;
-        }
-
-        .quick-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-secondary {
-            background: #f5f6fa;
-            color: #666;
-            border: 2px solid #e0e0e0;
-        }
-
-        .btn-secondary:hover {
-            background: #e8eaf0;
-            border-color: #667eea;
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
-        }
-
-        .btn-icon {
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            justify-content: center;
-            border-radius: 50%;
-        }
-
-        /* Search and Filter */
-        .search-filter-bar {
-            background: white;
-            padding: 1rem 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 1.5rem;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            position: relative;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            padding-left: 3rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .search-box input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        .search-box i {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-        }
-
-        .filter-select {
-            padding: 0.75rem 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .filter-select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* Bulk Actions */
-        .bulk-actions {
-            background: #fff3cd;
-            padding: 1rem 1.5rem;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-            display: none;
-            align-items: center;
-            justify-content: space-between;
-            border: 2px solid #ffc107;
-        }
-
-        .bulk-actions.active {
-            display: flex;
-        }
-
-        .bulk-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .bulk-count {
-            background: #ffc107;
-            color: #000;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-weight: 600;
-        }
-
-        .bulk-buttons {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        /* Enhanced Table */
-        .table-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            overflow: hidden;
-        }
-
-        .table-header {
-            background: #f8f9fa;
-            padding: 1rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .table-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .table-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .attendance-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .attendance-table thead th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-            text-align: left;
-            padding: 1rem 1.5rem;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .attendance-table thead th:first-child {
-            width: 50px;
-        }
-
-        .attendance-table tbody tr {
-            border-bottom: 1px solid #f0f0f0;
-            transition: all 0.3s ease;
-        }
-
-        .attendance-table tbody tr:hover {
-            background: #f8f9fa;
-        }
-
-        .attendance-table tbody tr.selected {
-            background: #e3f2fd;
-        }
-
-        .attendance-table tbody td {
-            padding: 1rem 1.5rem;
-        }
-
-        .student-checkbox {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: #667eea;
-        }
-
-        .student-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .student-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        .student-details {
-            flex: 1;
-        }
-
-        .student-name {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 0.2rem;
-        }
-
-        .student-number {
-            color: #999;
-            font-size: 0.85rem;
-            font-family: 'Courier New', monospace;
-        }
-
-        .attendance-status {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .status-radio {
-            display: none;
-        }
-
-        .status-label {
-            padding: 0.5rem 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-align: center;
-            min-width: 80px;
-        }
-
-        .status-label:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .status-radio:checked + .status-label {
-            transform: scale(1.05);
-        }
-
-        .status-radio:checked + .status-label.status-present {
-            border-color: #28a745;
-            background: #28a745;
-            color: white;
-        }
-
-        .status-radio:checked + .status-label.status-absent {
-            border-color: #dc3545;
-            background: #dc3545;
-            color: white;
-        }
-
-        .status-radio:checked + .status-label.status-late {
-            border-color: #ffc107;
-            background: #ffc107;
-            color: #000;
-        }
-
-        .status-radio:checked + .status-label.status-excused {
-            border-color: #6c757d;
-            background: #6c757d;
-            color: white;
-        }
-
-        /* Attendance History Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.3s ease;
-        }
-
-        .modal-content {
-            background: white;
-            margin: 3% auto;
-            padding: 0;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 900px;
-            max-height: 85vh;
-            overflow: hidden;
-            animation: slideIn 0.3s ease;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .modal-header {
-            padding: 1.5rem 2rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-        }
-
-        .close-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .close-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: rotate(90deg);
-        }
-
-        .modal-body {
-            padding: 2rem;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .history-timeline {
-            position: relative;
-            padding-left: 2rem;
-        }
-
-        .history-timeline::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 2px;
-            height: 100%;
-            background: #e0e0e0;
-        }
-
-        .history-item {
-            position: relative;
-            margin-bottom: 2rem;
-            padding-left: 2rem;
-        }
-
-        .history-item::before {
-            content: '';
-            position: absolute;
-            left: -2rem;
-            top: 0;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: white;
-            border: 3px solid #667eea;
-        }
-
-        .history-date {
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 0.5rem;
-        }
-
-        .history-status {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-
-        .history-status.present { background: #d4edda; color: #155724; }
-        .history-status.absent { background: #f8d7da; color: #721c24; }
-        .history-status.late { background: #fff3cd; color: #856404; }
-        .history-status.excused { background: #e2e3e5; color: #383d41; }
-
-        /* Export Menu */
-        .export-menu {
-            position: relative;
-        }
-
-        .export-dropdown {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: 100%;
-            margin-top: 0.5rem;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
-            min-width: 180px;
-            z-index: 100;
-        }
-
-        .export-dropdown.active {
-            display: block;
-        }
-
-        .export-option {
-            padding: 0.75rem 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .export-option:first-child {
-            border-radius: 10px 10px 0 0;
-        }
-
-        .export-option:last-child {
-            border-radius: 0 0 10px 10px;
-        }
-
-        .export-option:hover {
-            background: #f8f9fa;
-            color: #667eea;
-        }
-
-        /* Success Toast */
-        .success-toast {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            background: #28a745;
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-            display: none;
-            align-items: center;
-            gap: 0.75rem;
-            z-index: 3000;
-            animation: slideInRight 0.3s ease;
-        }
-
-        .success-toast.active {
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        @keyframes slideInRight {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .no-students {
-            text-align: center;
-            color: #999;
-            font-style: italic;
-            padding: 2rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .sidebar.active {
-                transform: translateX(0);
-            }
-            .main-content {
-                margin-left: 0;
-            }
-            .classes-grid {
-                grid-template-columns: 1fr;
-            }
-            .attendance-controls {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: stretch;
-            }
-            .date-selector {
-                justify-content: center;
-            }
-            .attendance-actions {
-                justify-content: center;
-            }
-        }
-
-        .mobile-menu-btn {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-            z-index: 999;
-        }
-
-        @media (max-width: 768px) {
-            .mobile-menu-btn {
-                display: block;
-            }
-        }
-
-        .no-students-info {
-            text-align: center;
-            color: #cf5300ff;
-            font-style: italic;
-            padding: 1rem;
-            background: #cf530023;
-            border: 1px solid #cf5300ff;
-            border-radius: 0.5rem;
-        }
-    </style>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../css/teacher/t-attendance.css">
+    
 </head>
 <body>
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <div class="logo">Acadex</div>
-            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar"></button>
+            <div class="sidebar-header-column">
+                <img class="sidebar-logo" src="../image/Acadex-logo-white.webp" alt="Acadex Logo">
+            </div>
+            <div class="sidebar-header-column sidebar-header-title">
+                <div class="logo">Acadex</div>
+            </div>
+            <div class="sidebar-header-column sidebar-header-toggle">
+                <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar"></button>
+            </div>
         </div>
 
         <div class="user-info">
@@ -1133,6 +75,12 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a href="t-students.php" class="nav-link">
+                    <i class="fas fa-user-graduate nav-icon"></i>
+                    <span>My Students</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="t-grades.php" class="nav-link">
                     <i class="fas fa-edit nav-icon"></i>
                     <span>Grade Management</span>
@@ -1151,7 +99,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a href="#" class="nav-link">
+                <a href="t-settings.php" class="nav-link">
                     <i class="fas fa-cog nav-icon"></i>
                     <span>Settings</span>
                 </a>
@@ -1165,13 +113,61 @@ try {
         <div class="top-bar">
             <div class="page-title">
                 <h1>Attendance Management</h1>
-                <p>Track and manage student attendance for your classes.</p>
             </div>
             <div class="top-actions">
-                <button class="notification-btn">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge">5</span>
-                </button>
+                <div class="notification-wrapper">
+                    <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge"><?php echo $requestCount; ?></span>
+                    </button>
+                    <div class="notification-menu" id="notificationMenu" aria-hidden="true">
+                        <div class="notification-header">
+                            <span>Requests</span>
+                            <span class="notification-count"><?php echo $requestCount; ?></span>
+                        </div>
+                        <div class="notification-list">
+                            <?php if (!empty($studentRequests)): ?>
+                                <?php foreach ($studentRequests as $request): ?>
+                                    <?php
+                                        $requestType = $request['request_type'] ?? 'grade';
+                                        $term = $request['term'] ?? '';
+                                        $termText = '';
+                                        if ($requestType === 'grade') {
+                                            if ($term === 'all') {
+                                                $termText = 'all ';
+                                            } elseif (!empty($term)) {
+                                                $termText = ucfirst($term) . ' ';
+                                            }
+                                        }
+                                        $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                                        $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                                        $description = $requestType === 'attendance'
+                                            ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                    ?>
+                                    <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                                         data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                                         data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                                         data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                                         data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                                        <div class="notification-title"><?php echo htmlspecialchars($title); ?></div>
+                                        <div class="notification-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                                        <div class="notification-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="notification-item">
+                                    <div class="notification-title">No pending requests</div>
+                                    <div class="notification-text">Student requests will appear here.</div>
+                                    <div class="notification-time">---</div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notification-footer">
+                            <button type="button" class="notification-link" id="openRequestsModal">See all →</button>
+                        </div>
+                    </div>
+                </div>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
@@ -1238,6 +234,11 @@ try {
                         <div class="stat-value" id="excusedCount">0</div>
                         <div class="stat-label">Excused</div>
                     </div>
+                    <div class="stat-card unexcused">
+                        <div class="stat-icon"><i class="fas fa-ban"></i></div>
+                        <div class="stat-value" id="unexcusedCount">0</div>
+                        <div class="stat-label">Unexcused</div>
+                    </div>
                 </div>
 
 
@@ -1254,7 +255,7 @@ try {
                                     <option value="morning">Morning</option>
                                     <option value="afternoon">Afternoon</option>
                                     <option value="evening">Evening</option>
-                                    <option value="makeup">Make-up Class</option>
+                                    <option value="make-up class">Make-up Class</option>
                                 </select>
                             </div>
                             <button class="btn btn-secondary" onclick="loadAttendance()"><i class="fas fa-download"></i> Load</button>
@@ -1281,6 +282,7 @@ try {
                         <option value="absent">Absent Only</option>
                         <option value="late">Late Only</option>
                         <option value="excused">Excused Only</option>
+                        <option value="unexcused">Unexcused Only</option>
                     </select>
                     <div class="export-menu">
                         <button class="btn btn-secondary" onclick="toggleExportMenu()"><i class="fas fa-download"></i> Export</button>
@@ -1301,6 +303,7 @@ try {
                         <button class="btn btn-secondary" onclick="markBulk('absent')"><i class="fas fa-times"></i> Mark Absent</button>
                         <button class="btn btn-secondary" onclick="markBulk('late')"><i class="fas fa-clock"></i> Mark Late</button>
                         <button class="btn btn-secondary" onclick="markBulk('excused')"><i class="fas fa-file-medical"></i> Mark Excused</button>
+                        <button class="btn btn-secondary" onclick="markBulk('unexcused')"><i class="fas fa-ban"></i> Mark Unexcused</button>
                         <button class="btn btn-secondary" onclick="clearSelection()"><i class="fas fa-undo"></i> Clear</button>
                     </div>
                 </div>
@@ -1335,6 +338,89 @@ try {
         </div>
     </main>
 
+    <div class="requests-modal" id="requestsModal" aria-hidden="true">
+        <div class="requests-modal-content" role="dialog" aria-modal="true" aria-labelledby="requestsModalTitle">
+            <div class="requests-modal-header">
+                <h3 id="requestsModalTitle">Student Requests</h3>
+                <button class="requests-modal-close" type="button" id="closeRequestsModal" aria-label="Close requests modal">&times;</button>
+            </div>
+            <div class="requests-tabs">
+                <button type="button" class="requests-tab active" data-tab="pending">Pending</button>
+                <button type="button" class="requests-tab" data-tab="completed">Completed</button>
+            </div>
+            <div class="requests-tab-panel active" data-panel="pending">
+                <?php if (!empty($pendingRequestsAll)): ?>
+                    <?php foreach ($pendingRequestsAll as $request): ?>
+                        <?php
+                            $requestType = $request['request_type'] ?? 'grade';
+                            $term = $request['term'] ?? '';
+                            $termText = '';
+                            if ($requestType === 'grade') {
+                                if ($term === 'all') {
+                                    $termText = 'all ';
+                                } elseif (!empty($term)) {
+                                    $termText = ucfirst($term) . ' ';
+                                }
+                            }
+                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                            $description = $requestType === 'attendance'
+                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        ?>
+                        <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
+                            <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                            <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                            <span class="request-status-icon status-pending" aria-hidden="true"><i class="fas fa-clock"></i></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="request-empty">No pending requests.</div>
+                <?php endif; ?>
+            </div>
+            <div class="requests-tab-panel" data-panel="completed">
+                <?php if (!empty($completedRequestsAll)): ?>
+                    <?php foreach ($completedRequestsAll as $request): ?>
+                        <?php
+                            $requestType = $request['request_type'] ?? 'grade';
+                            $term = $request['term'] ?? '';
+                            $termText = '';
+                            if ($requestType === 'grade') {
+                                if ($term === 'all') {
+                                    $termText = 'all ';
+                                } elseif (!empty($term)) {
+                                    $termText = ucfirst($term) . ' ';
+                                }
+                            }
+                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                            $description = $requestType === 'attendance'
+                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        ?>
+                        <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
+                            <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                            <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                            <span class="request-status-icon status-resolved" aria-hidden="true"><i class="fas fa-check"></i></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="request-empty">No completed requests yet.</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
     <!-- History Modal -->
     <div id="historyModal" class="modal">
         <div class="modal-content">
@@ -1344,7 +430,14 @@ try {
             </div>
             <div class="modal-body">
                 <h3 id="historyStudentHeader" style="margin-bottom:1rem;"></h3>
+                <div class="history-hint">Select specific records below to send only those dates.</div>
                 <div class="history-timeline" id="historyTimeline"><!-- items injected --></div>
+            </div>
+            <div class="modal-footer history-footer">
+                <div class="history-actions">
+                    <button type="button" class="btn btn-secondary" id="sendAttendanceAll">Send Entire Record</button>
+                    <button type="button" class="btn btn-primary" id="sendAttendanceSelected" style="display: none;" disabled>Send Selected Records</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1356,10 +449,56 @@ try {
     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
 
     <script>
+        // Track unsaved changes
+        let hasUnsavedChanges = false;
+
+        // Function to mark changes as unsaved
+        function markUnsavedChanges() {
+            hasUnsavedChanges = true;
+            updateUnsavedChangesIndicator();
+        }
+
+        // Function to clear unsaved changes
+        function clearUnsavedChanges() {
+            hasUnsavedChanges = false;
+            updateUnsavedChangesIndicator();
+        }
+
+        // Function to update the unsaved changes indicator
+        function updateUnsavedChangesIndicator() {
+            const saveButton = document.querySelector('.btn-success');
+            if (hasUnsavedChanges) {
+                saveButton.innerHTML = '<i class="fas fa-save"></i> Save*';
+                saveButton.style.background = '#ffc107';
+                saveButton.style.color = '#000';
+            } else {
+                saveButton.innerHTML = '<i class="fas fa-save"></i> Save';
+                saveButton.style.background = '';
+                saveButton.style.color = '';
+            }
+        }
+
+        // Warn about unsaved changes before page unload
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                return 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+
         // Sidebar collapse/expand functionality
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebarToggle');
         const mainContent = document.querySelector('.main-content');
+        const notificationBtn = document.getElementById('notificationBtn');
+        const notificationMenu = document.getElementById('notificationMenu');
+        const openRequestsModal = document.getElementById('openRequestsModal');
+        const requestsModal = document.getElementById('requestsModal');
+        const closeRequestsModal = document.getElementById('closeRequestsModal');
+        const requestTabs = document.querySelectorAll('.requests-tab');
+        const requestPanels = document.querySelectorAll('.requests-tab-panel');
+        const requestedStudentId = new URLSearchParams(window.location.search).get('student_id');
 
         // Load initial state from localStorage
         const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
@@ -1376,22 +515,129 @@ try {
 
         sidebarToggle.addEventListener('click', toggleSidebarMode);
 
+        if (notificationBtn && notificationMenu) {
+            notificationBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpen = notificationMenu.classList.toggle('active');
+                notificationBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                notificationMenu.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+            });
+        }
+
+        function handleRequestClick(item) {
+            const requestType = item.getAttribute('data-request-type');
+            const classId = item.getAttribute('data-class-id');
+            const studentId = item.getAttribute('data-student-id');
+            const requestId = item.getAttribute('data-request-id');
+            if (!requestType || !classId || !studentId) {
+                return;
+            }
+            if (requestId) {
+                const params = new URLSearchParams({ request_id: requestId });
+                fetch('../includes/mark_request_seen.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                }).catch(() => {});
+            }
+            if (requestType === 'attendance') {
+                window.location.href = `t-attendance.php?class_id=${classId}&student_id=${studentId}`;
+            } else {
+                window.location.href = `t-grades.php?class_id=${classId}&student_id=${studentId}`;
+            }
+        }
+
+        document.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', () => {
+                handleRequestClick(item);
+            });
+        });
+
+        document.querySelectorAll('.request-item').forEach(item => {
+            item.addEventListener('click', () => {
+                handleRequestClick(item);
+            });
+        });
+
+        function toggleRequestsModal(show) {
+            if (!requestsModal) return;
+            requestsModal.classList.toggle('active', show);
+            requestsModal.setAttribute('aria-hidden', show ? 'false' : 'true');
+        }
+
+        if (openRequestsModal) {
+            openRequestsModal.addEventListener('click', () => {
+                toggleRequestsModal(true);
+            });
+        }
+
+        if (closeRequestsModal) {
+            closeRequestsModal.addEventListener('click', () => {
+                toggleRequestsModal(false);
+            });
+        }
+
+        if (requestsModal) {
+            requestsModal.addEventListener('click', (event) => {
+                if (event.target === requestsModal) {
+                    toggleRequestsModal(false);
+                }
+            });
+        }
+
+        requestTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.getAttribute('data-tab');
+                requestTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                requestPanels.forEach(panel => {
+                    panel.classList.toggle('active', panel.getAttribute('data-panel') === target);
+                });
+            });
+        });
+
         // Mobile sidebar toggle
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('active');
         }
 
+        function showAlert(message, icon = 'info', title = '') {
+            return Swal.fire({ icon, title, text: message });
+        }
+
+        window.alert = (message) => showAlert(message);
+
+        function confirmAction(message, options = {}) {
+            return Swal.fire({
+                title: options.title || 'Are you sure?',
+                text: message,
+                icon: options.icon || 'warning',
+                showCancelButton: true,
+                confirmButtonText: options.confirmText || 'Yes',
+                cancelButtonText: options.cancelText || 'Cancel'
+            }).then(result => result.isConfirmed);
+        }
+
         function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                window.location.href = '../auth/teacher-login.php';
-            }
+            confirmAction('Are you sure you want to logout?', { confirmText: 'Logout' })
+                .then((confirmed) => {
+                    if (confirmed) {
+                        window.location.href = '../auth/teacher-login.php';
+                    }
+                });
         }
 
         // Close sidebar when clicking outside on mobile
         document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('sidebar');
             const menuBtn = document.querySelector('.mobile-menu-btn');
+
+            if (notificationMenu && notificationBtn && !notificationMenu.contains(event.target) && !notificationBtn.contains(event.target)) {
+                notificationMenu.classList.remove('active');
+                notificationBtn.setAttribute('aria-expanded', 'false');
+                notificationMenu.setAttribute('aria-hidden', 'true');
+            }
 
             if (window.innerWidth <= 768) {
                 if (!sidebar.contains(event.target) && !menuBtn.contains(event.target)) {
@@ -1440,6 +686,7 @@ try {
             document.getElementById('absentCount').textContent = '0';
             document.getElementById('lateCount').textContent = '0';
             document.getElementById('excusedCount').textContent = '0';
+            document.getElementById('unexcusedCount').textContent = '0';
 
             // Reset date to today
             document.getElementById('attendanceDate').value = new Date().toISOString().slice(0,10);
@@ -1492,9 +739,12 @@ try {
                     body.innerHTML = '';
                     if (!data.success || data.students.length === 0) return;
 
+                    let highlightedRow = null;
+
                     data.students.forEach(st => {
                         const avatar = (st.first_name[0] + st.last_name[0]).toUpperCase();
                         const row = document.createElement('tr');
+                        row.dataset.studentId = st.id;
                         row.innerHTML = `
                             <td><input type="checkbox" class="row-checkbox" onclick="updateBulkSelection()"></td>
                             <td>
@@ -1508,29 +758,70 @@ try {
                             </td>
                             <td>${st.program || 'N/A'}</td>
                             <td class="attendance-status">
-                                <input type="radio" name="status_${st.id}" value="present" class="status-radio" id="present_${st.id}" checked onchange="updateStats()">
-                                <label for="present_${st.id}" class="status-label status-present">Present</label>
+                                <div class="status-inline">
+                                    <input type="radio" name="status_${st.id}" value="present" class="status-radio" id="present_${st.id}" checked onchange="updateStats(); markUnsavedChanges()">
+                                    <label for="present_${st.id}" class="status-label status-present" data-tooltip="Present" aria-label="Present">
+                                        <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle>
+                                            <path d="M7.5 12.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </label>
 
-                                <input type="radio" name="status_${st.id}" value="absent" class="status-radio" id="absent_${st.id}" onchange="updateStats()">
-                                <label for="absent_${st.id}" class="status-label status-absent">Absent</label>
+                                    <input type="radio" name="status_${st.id}" value="absent" class="status-radio" id="absent_${st.id}" onchange="updateStats(); markUnsavedChanges()">
+                                    <label for="absent_${st.id}" class="status-label status-absent" data-tooltip="Absent" aria-label="Absent">
+                                        <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle>
+                                            <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </label>
 
-                                <input type="radio" name="status_${st.id}" value="late" class="status-radio" id="late_${st.id}" onchange="updateStats()">
-                                <label for="late_${st.id}" class="status-label status-late">Late</label>
+                                    <input type="radio" name="status_${st.id}" value="late" class="status-radio" id="late_${st.id}" onchange="updateStats(); markUnsavedChanges()">
+                                    <label for="late_${st.id}" class="status-label status-late" data-tooltip="Late" aria-label="Late">
+                                        <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle>
+                                            <path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </label>
 
-                                <input type="radio" name="status_${st.id}" value="excused" class="status-radio" id="excused_${st.id}" onchange="updateStats()">
-                                <label for="excused_${st.id}" class="status-label status-excused">Excused</label>
+                                    <input type="radio" name="status_${st.id}" value="excused" class="status-radio" id="excused_${st.id}" onchange="updateStats(); markUnsavedChanges()">
+                                    <label for="excused_${st.id}" class="status-label status-excused" data-tooltip="Excused" aria-label="Excused">
+                                        <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <rect x="6" y="3" width="12" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></rect>
+                                            <path d="M9 8h6M9 12h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                            <path d="M16.8 7.2l-3.2-3.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </label>
+
+                                    <input type="radio" name="status_${st.id}" value="unexcused" class="status-radio" id="unexcused_${st.id}" onchange="updateStats(); markUnsavedChanges()">
+                                    <label for="unexcused_${st.id}" class="status-label status-unexcused" data-tooltip="Unexcused" aria-label="Unexcused">
+                                        <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M12 3l9 16H3l9-16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                            <path d="M12 9v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                                            <circle cx="12" cy="16" r="1" fill="currentColor"></circle>
+                                        </svg>
+                                    </label>
+                                </div>
                             </td>
                             <td>
-                                <button class="btn btn-secondary btn-icon" onclick="viewHistory(${st.id})"><i class="fas fa-history"></i></button>
+                                <button class="btn btn-secondary btn-icon" onclick="viewHistory(${st.id})" data-tooltip="Attendance Record" aria-label="Attendance Record"><i class="fas fa-history"></i></button>
                             </td>
                         `;
                         body.appendChild(row);
+
+                        if (requestedStudentId && String(st.id) === String(requestedStudentId)) {
+                            row.classList.add('highlight-row');
+                            highlightedRow = row;
+                        }
                     });
 
                     document.getElementById('totalStudents').textContent = data.students.length;
                     updateStats();
                     // Load existing attendance after students are loaded
                     loadAttendance();
+
+                    if (highlightedRow) {
+                        highlightedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 });
         }
 
@@ -1539,11 +830,13 @@ try {
             const absent = document.querySelectorAll('.status-radio[value="absent"]:checked').length;
             const late = document.querySelectorAll('.status-radio[value="late"]:checked').length;
             const excused = document.querySelectorAll('.status-radio[value="excused"]:checked').length;
+            const unexcused = document.querySelectorAll('.status-radio[value="unexcused"]:checked').length;
 
             document.getElementById('presentCount').textContent = present;
             document.getElementById('absentCount').textContent = absent;
             document.getElementById('lateCount').textContent = late;
             document.getElementById('excusedCount').textContent = excused;
+            document.getElementById('unexcusedCount').textContent = unexcused;
         }
 
         function toggleSelectAll() {
@@ -1602,10 +895,59 @@ try {
             });
         }
 
+        let currentHistoryStudent = null;
+        let currentHistoryRecords = [];
+
+        function updateHistorySelectedState() {
+            const selected = document.querySelectorAll('.history-checkbox:checked').length;
+            const sendSelectedBtn = document.getElementById('sendAttendanceSelected');
+            const sendAllBtn = document.getElementById('sendAttendanceAll');
+            if (sendSelectedBtn) {
+                sendSelectedBtn.disabled = selected === 0;
+                sendSelectedBtn.style.display = selected > 0 ? 'inline-flex' : 'none';
+            }
+            if (sendAllBtn) {
+                sendAllBtn.style.display = selected > 0 ? 'none' : 'inline-flex';
+            }
+        }
+
+        function sendAttendanceHistory(records) {
+            if (!currentHistoryStudent || !records.length) {
+                alert('No attendance records selected.');
+                return;
+            }
+            const payload = new FormData();
+            payload.append('action', 'email_attendance_history');
+            payload.append('student_id', currentHistoryStudent.id);
+            payload.append('student_email', currentHistoryStudent.email);
+            payload.append('student_name', currentHistoryStudent.name);
+            payload.append('class_id', currentHistoryStudent.class_id || '');
+            payload.append('records', JSON.stringify(records));
+            payload.append('teacher_name', '<?php echo htmlspecialchars($userFullName); ?>');
+
+            fetch('../includes/send_email.php', {
+                method: 'POST',
+                body: payload
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Attendance record emailed successfully.');
+                    } else {
+                        alert('Failed to send email: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(() => {
+                    alert('An error occurred while sending the email.');
+                });
+        }
+
         function viewHistory(id) {
             const modal = document.getElementById('historyModal');
             const timeline = document.getElementById('historyTimeline');
             const header = document.getElementById('historyStudentHeader');
+            const sendAllBtn = document.getElementById('sendAttendanceAll');
+            const sendSelectedBtn = document.getElementById('sendAttendanceSelected');
             timeline.innerHTML = '<p>Loading...</p>';
             modal.style.display = 'block';
 
@@ -1616,13 +958,45 @@ try {
                         timeline.innerHTML = '<p>No history found.</p>';
                         return;
                     }
-                    header.textContent = `Attendance History for Student ID: ${id}`;
-                    timeline.innerHTML = data.history.map(h => `
+                    currentHistoryStudent = data.student || null;
+                    currentHistoryRecords = Array.isArray(data.history) ? data.history : [];
+                    header.textContent = currentHistoryStudent
+                        ? `Attendance History for ${currentHistoryStudent.name}`
+                        : `Attendance History for Student ID: ${id}`;
+
+                    if (!currentHistoryRecords.length) {
+                        timeline.innerHTML = '<p>No history found.</p>';
+                        if (sendAllBtn) sendAllBtn.style.display = 'inline-flex';
+                        if (sendAllBtn) sendAllBtn.disabled = true;
+                        if (sendSelectedBtn) {
+                            sendSelectedBtn.style.display = 'none';
+                            sendSelectedBtn.disabled = true;
+                        }
+                        return;
+                    }
+
+                    if (sendAllBtn) {
+                        sendAllBtn.style.display = 'inline-flex';
+                        sendAllBtn.disabled = false;
+                    }
+                    if (sendSelectedBtn) {
+                        sendSelectedBtn.style.display = 'none';
+                        sendSelectedBtn.disabled = true;
+                    }
+
+                    timeline.innerHTML = currentHistoryRecords.map((h, index) => `
                         <div class="history-item">
-                            <div class="history-date">${h.date}</div>
+                            <label class="history-select">
+                                <input type="checkbox" class="history-checkbox" data-index="${index}">
+                                <span class="history-date">${h.display_date || ''}</span>
+                            </label>
                             <span class="history-status ${h.status}">${h.status.toUpperCase()}</span>
                         </div>
                     `).join('');
+
+                    document.querySelectorAll('.history-checkbox').forEach(box => {
+                        box.addEventListener('change', updateHistorySelectedState);
+                    });
                 });
         }
 
@@ -1710,6 +1084,8 @@ try {
             .then(data => {
                 document.getElementById('successToast').classList.add('active');
                 setTimeout(() => document.getElementById('successToast').classList.remove('active'), 3000);
+                // Clear unsaved changes after successful save
+                clearUnsavedChanges();
             });
         }
 
@@ -1723,6 +1099,44 @@ try {
                     selectClass(className, classId);
                 });
             });
+
+            const params = new URLSearchParams(window.location.search);
+            const requestedClassId = params.get('class_id');
+            if (requestedClassId) {
+                const requestedCard = document.querySelector(`.class-card[data-class-id="${requestedClassId}"]`);
+                if (requestedCard) {
+                    const className = requestedCard.getAttribute('data-class-name');
+                    selectClass(className, requestedClassId);
+                }
+            }
+
+            const sendAllBtn = document.getElementById('sendAttendanceAll');
+            const sendSelectedBtn = document.getElementById('sendAttendanceSelected');
+            if (sendAllBtn) {
+                sendAllBtn.addEventListener('click', () => {
+                    if (!currentHistoryRecords.length) {
+                        alert('No attendance records to send.');
+                        return;
+                    }
+                    sendAttendanceHistory(currentHistoryRecords);
+                });
+            }
+            if (sendSelectedBtn) {
+                sendSelectedBtn.addEventListener('click', () => {
+                    const selectedRecords = [];
+                    document.querySelectorAll('.history-checkbox:checked').forEach(box => {
+                        const index = parseInt(box.getAttribute('data-index'), 10);
+                        if (!Number.isNaN(index) && currentHistoryRecords[index]) {
+                            selectedRecords.push(currentHistoryRecords[index]);
+                        }
+                    });
+                    if (!selectedRecords.length) {
+                        alert('Please select at least one record to send.');
+                        return;
+                    }
+                    sendAttendanceHistory(selectedRecords);
+                });
+            }
 
             // Add event listeners to load attendance when date or session changes
             document.getElementById('attendanceDate').addEventListener('change', loadAttendance);
@@ -1813,19 +1227,11 @@ try {
                 <html>
                 <head>
                     <title>Acadex Attendance Report - ${className}</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        h1 { color: #667eea; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        th { background-color: #f2f2f2; }
-                        .present { color: #28a745; }
-                        .absent { color: #dc3545; }
-                        .late { color: #ffc107; }
-                        .excused { color: #6c757d; }
-                    </style>
-                </head>
-                <body>
+                    
+                    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../css/teacher/t-attendance.css">
+</head>
+                <body class="print-report">
                     <h1>Acadex Attendance Report</h1>
                     <p><strong>Class:</strong> ${className} - <?php echo htmlspecialchars($class['section']); ?> - <?php echo htmlspecialchars($class['term']); ?></p>
                     <p><strong>Date:</strong> ${date}</p>

@@ -11,6 +11,79 @@ require '../vendor/PHPMailer-master/src/PHPMailer.php';
 require '../vendor/PHPMailer-master/src/Exception.php';
 require '../vendor/PHPMailer-master/src/SMTP.php';
 
+function ensureEmailLogTable($pdo) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS email_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            teacher_email VARCHAR(255) NOT NULL,
+            student_email VARCHAR(255) NOT NULL,
+            class_id INT NULL,
+            email_type VARCHAR(50) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_teacher_date (teacher_email, created_at)
+        )
+    ");
+}
+
+function logEmailSend($pdo, $teacher_email, $student_email, $email_type, $class_id = null) {
+    if (empty($teacher_email) || empty($student_email)) {
+        return;
+    }
+
+    try {
+        ensureEmailLogTable($pdo);
+        $stmt = $pdo->prepare("
+            INSERT INTO email_logs (teacher_email, student_email, class_id, email_type, created_at)
+            VALUES (?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([$teacher_email, $student_email, $class_id, $email_type]);
+    } catch (PDOException $e) {
+        // Fail silently to avoid blocking email send on log issues.
+    }
+}
+
+function resolveStudentRequest($pdo, $teacher_email, $student_email, $request_type, $class_id = null, $term = null, $resolve_all_terms = false) {
+    if (empty($teacher_email) || empty($student_email) || empty($request_type)) {
+        return;
+    }
+
+    $params = [$teacher_email, $student_email, $request_type];
+    $conditions = "teacher_email = ? AND student_email = ? AND request_type = ? AND status = 'pending'";
+
+    if ($class_id !== null) {
+        $conditions .= " AND (class_id = ? OR class_id IS NULL)";
+        $params[] = $class_id;
+    }
+
+    if (!$resolve_all_terms && $term !== null) {
+        $conditions .= " AND term = ?";
+        $params[] = $term;
+    }
+
+    $paramsWithResolver = array_merge([$teacher_email], $params);
+
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE student_requests
+            SET status = 'resolved',
+                resolved_at = NOW(),
+                resolved_by = ?
+            WHERE $conditions
+        ");
+        $stmt->execute($paramsWithResolver);
+    } catch (PDOException $e) {
+        try {
+            $stmt = $pdo->prepare("
+                UPDATE student_requests
+                SET status = 'resolved'
+                WHERE $conditions
+            ");
+            $stmt->execute($params);
+        } catch (PDOException $ignored) {
+        }
+    }
+}
+
 // ---------------- EMAIL FUNCTION ------------------
 
 if (!function_exists('emailTermGrade')) {
@@ -117,6 +190,9 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
         $mail->Body = $html_body;
 
         $mail->send();
+        $teacherEmail = $_SESSION['email'] ?? null;
+        logEmailSend($pdo, $teacherEmail, $student_email, 'term_grades', $class_id);
+        resolveStudentRequest($pdo, $teacherEmail, $student_email, 'grade', $class_id, $term, false);
         echo json_encode(['success' => true, 'message' => 'Email sent']);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => $mail->ErrorInfo]);
@@ -192,6 +268,9 @@ function emailSpecificGrade($student_email, $student_name, $class_id, $student_n
         $mail->Body = $html_body;
 
         $mail->send();
+        $teacherEmail = $_SESSION['email'] ?? null;
+        logEmailSend($pdo, $teacherEmail, $student_email, 'component_grade', $class_id);
+        resolveStudentRequest($pdo, $teacherEmail, $student_email, 'grade', $class_id, $term, false);
         echo json_encode(['success' => true, 'message' => 'Email sent']);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => $mail->ErrorInfo]);
@@ -325,6 +404,9 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
         $mail->Body = $html_body;
 
         $mail->send();
+        $teacherEmail = $_SESSION['email'] ?? null;
+        logEmailSend($pdo, $teacherEmail, $student_email, 'student_report', $class_id);
+        resolveStudentRequest($pdo, $teacherEmail, $student_email, 'grade', $class_id, null, true);
         echo json_encode(['success' => true, 'message' => 'Email sent']);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => $mail->ErrorInfo]);
@@ -332,7 +414,7 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
 }
 
 // Function to send attendance email
-function emailAttendance($student_email, $student_name, $date, $session, $status, $pdo, $teacher_name, $class_name, $section, $semester) {
+function emailAttendance($student_email, $student_name, $date, $session, $status, $pdo, $teacher_name, $class_name, $section, $semester, $class_id = null) {
     // Build HTML email body
     $html_body = "
         <html><body>
@@ -382,11 +464,107 @@ function emailAttendance($student_email, $student_name, $date, $session, $status
         $mail->Body = $html_body;
 
         $mail->send();
+        $teacherEmail = $_SESSION['email'] ?? null;
+        logEmailSend($pdo, $teacherEmail, $student_email, 'attendance', $class_id);
+        resolveStudentRequest($pdo, $teacherEmail, $student_email, 'attendance', $class_id, null, false);
         return ['success' => true, 'message' => 'Email sent'];
     } catch (Exception $e) {
         return ['success' => false, 'message' => $mail->ErrorInfo];
     }
 }
+}
+
+function emailAttendanceHistory($student_email, $student_name, $records, $pdo, $teacher_name, $class_id = null) {
+    if (empty($records)) {
+        echo json_encode(['success' => false, 'message' => 'No attendance records provided']);
+        return;
+    }
+
+    $class_name = 'Class';
+    $section = '';
+    $semester = '';
+    if ($class_id) {
+        $stmt = $pdo->prepare("SELECT class_name, section, term FROM classes WHERE id = ?");
+        $stmt->execute([$class_id]);
+        $class_row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($class_row) {
+            $class_name = $class_row['class_name'];
+            $section = $class_row['section'];
+            $semester = $class_row['term'];
+        }
+    }
+
+    $rows = '';
+    foreach ($records as $record) {
+        $dateText = !empty($record['attendance_date'])
+            ? date('M d, Y', strtotime($record['attendance_date']))
+            : ($record['display_date'] ?? '');
+        $session = $record['session'] ?? '';
+        $status = strtoupper($record['status'] ?? '');
+        $rows .= "
+            <tr>
+                <td>{$dateText}</td>
+                <td>" . ($session ? ucfirst($session) : '-') . "</td>
+                <td>{$status}</td>
+            </tr>
+        ";
+    }
+
+    $html_body = "
+        <html><body>
+        <h2>Attendance Record</h2>
+        <p>
+            <table cellpadding='0' cellspacing='0' style='border-collapse: collapse; border: none;'>
+                <tr>
+                    <td><strong>Class:</strong> {$class_name}</td>
+                    <td style='padding-left:25px;'><strong>Semester:</strong> {$semester}</td>
+                </tr>
+                <tr>
+                    <td><strong>Name:</strong> {$student_name}</td>
+                    <td style='padding-left:25px;'><strong>Section:</strong> {$section}</td>
+                </tr>
+            </table>
+        </p>
+
+        <table border='1' cellpadding='6' cellspacing='0'>
+            <tr>
+                <th>Date</th>
+                <th>Session</th>
+                <th>Status</th>
+            </tr>
+            {$rows}
+        </table>
+
+        <p>Best regards,<br>{$teacher_name}</p>
+        </body></html>
+    ";
+
+    $mail = new PHPMailer(true);
+
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.gmail.com';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'acadex3@gmail.com';
+        $mail->Password = 'ipit lqby byab gtob';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
+
+        $mail->setFrom('acadex3@gmail.com', 'Acadex - Attendance Records');
+        $mail->addAddress($student_email);
+
+        $mail->isHTML(true);
+        $mail->Subject = "Attendance Record for {$class_name}";
+        $mail->Body = $html_body;
+
+        $mail->send();
+        $teacherEmail = $_SESSION['email'] ?? null;
+        logEmailSend($pdo, $teacherEmail, $student_email, 'attendance_history', $class_id);
+        resolveStudentRequest($pdo, $teacherEmail, $student_email, 'attendance', $class_id, null, false);
+        echo json_encode(['success' => true, 'message' => 'Email sent']);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $mail->ErrorInfo]);
+    }
 }
 
 // Set JSON header
@@ -491,7 +669,31 @@ if ($action == 'email_attendance') {
         exit;
     }
 
-    emailAttendance($student_email, $student_name, $class_id, $date, $session, $status, $pdo, $teacher_name, $class['class_name'], $class['section'], $class['term']);
+    emailAttendance($student_email, $student_name, $date, $session, $status, $pdo, $teacher_name, $class['class_name'], $class['section'], $class['term'], $class_id);
+    exit;
+}
+
+if ($action == 'email_attendance_history') {
+    $student_id = $_POST['student_id'] ?? null;
+    $student_email = $_POST['student_email'] ?? null;
+    $student_name = $_POST['student_name'] ?? null;
+    $class_id = $_POST['class_id'] ?? null;
+    $records = json_decode($_POST['records'] ?? '[]', true);
+    $teacher_name = $_POST['teacher_name'] ?? null;
+
+    if (!$student_id || !$student_email || !$student_name || empty($records)) {
+        echo json_encode(['success' => false, 'message' => 'Missing required parameters']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("SELECT id FROM students WHERE id = ? AND teacher_email = ?");
+    $stmt->execute([$student_id, $_SESSION['email'] ?? '']);
+    if (!$stmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+
+    emailAttendanceHistory($student_email, $student_name, $records, $pdo, $teacher_name, $class_id);
     exit;
 }
 ?>

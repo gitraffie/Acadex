@@ -20,11 +20,12 @@ try {
         exit();
     }
     // Get class ID from form data
-    $classId = $_POST['classId'] ?? null;
-    if (!$classId) {
+    $classIdRaw = $_POST['classId'] ?? null;
+    if ($classIdRaw === null || $classIdRaw === '') {
         echo json_encode(['success' => false, 'message' => 'Class ID is required']);
         exit();
     }
+    $classId = (int) $classIdRaw;
 
     // Check if file was uploaded
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
@@ -144,8 +145,8 @@ try {
 
     foreach ($students as $student) {
         // Check for duplicates
-        $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ? AND class_id = ?");
-        $stmt->execute([$student['student_number'], $classId]);
+        $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ? LIMIT 1");
+        $stmt->execute([$student['student_number']]);
         if ($stmt->fetch()) {
             $duplicates++;
             continue;

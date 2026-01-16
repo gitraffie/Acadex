@@ -31,6 +31,16 @@ try {
     $dashboardClasses = [];
 }
 
+// Fetch total number of active classes for the current teacher
+try {
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total_classes FROM classes WHERE user_email = ? AND archived = 0");
+    $stmt->execute([$userEmail]);
+    $result = $stmt->fetch();
+    $totalClasses = $result['total_classes'] ?? 0;
+} catch (PDOException $e) {
+    $totalClasses = 0;
+}
+
 // Calculate pending grades (students not yet graded)
 try {
     // Count students that have been graded (have entries in calculated_grades)
@@ -43,7 +53,73 @@ try {
     $pendingGrades = $totalStudents - $gradedStudents;
 } catch (PDOException $e) {
     $pendingGrades = 0; // Default to 0 if query fails
+    $gradedStudents = 0;
 }
+
+// Fetch email stats for the current teacher
+try {
+    $stmt = $pdo->prepare("SELECT COUNT(*) as emails_today FROM email_logs WHERE teacher_email = ? AND DATE(created_at) = CURDATE()");
+    $stmt->execute([$userEmail]);
+    $emailTodayResult = $stmt->fetch();
+    $emailsSentToday = $emailTodayResult['emails_today'] ?? 0;
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) as emails_week FROM email_logs WHERE teacher_email = ? AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)");
+    $stmt->execute([$userEmail]);
+    $emailWeekResult = $stmt->fetch();
+    $emailsSentWeek = $emailWeekResult['emails_week'] ?? 0;
+} catch (PDOException $e) {
+    $emailsSentToday = 0;
+    $emailsSentWeek = 0;
+}
+
+include '../includes/teacher_requests.php';
+
+// Fetch recent activity across grades, attendance, and emails
+try {
+    $stmt = $pdo->prepare("
+        SELECT activity_type, title, description, activity_time FROM (
+            SELECT
+                'grade' AS activity_type,
+                'Grades Updated' AS title,
+                CONCAT(COALESCE(c.class_name, 'Class'), ' grades updated for ', COALESCE(s.first_name, 'a student'), ' ', COALESCE(s.last_name, '')) AS description,
+                g.updated_at AS activity_time
+            FROM grades g
+            JOIN classes c ON c.id = g.class_id
+            LEFT JOIN students s ON s.student_number = g.student_number AND s.class_id = g.class_id
+            WHERE g.teacher_email = ?
+
+            UNION ALL
+
+            SELECT
+                'attendance' AS activity_type,
+                'Attendance Taken' AS title,
+                CONCAT(COALESCE(c.class_name, 'Class'), ' attendance recorded for ', COALESCE(s.first_name, 'a student'), ' ', COALESCE(s.last_name, '')) AS description,
+                a.updated_at AS activity_time
+            FROM attendance a
+            JOIN classes c ON c.id = a.class_id
+            LEFT JOIN students s ON s.id = a.student_id
+            WHERE c.user_email = ?
+
+            UNION ALL
+
+            SELECT
+                'email' AS activity_type,
+                'Notification Sent' AS title,
+                CONCAT('Email sent to ', e.student_email, COALESCE(CONCAT(' for ', c.class_name), '')) AS description,
+                e.created_at AS activity_time
+            FROM email_logs e
+            LEFT JOIN classes c ON c.id = e.class_id
+            WHERE e.teacher_email = ?
+        ) activity_feed
+        ORDER BY activity_time DESC
+        LIMIT 5
+    ");
+    $stmt->execute([$userEmail, $userEmail, $userEmail]);
+    $recentActivities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $recentActivities = [];
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -54,611 +130,23 @@ try {
     <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-            color: #333;
-        }
-
-        /* Sidebar Navigation */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 260px;
-            height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem 0;
-            z-index: 1000;
-            transition: all 0.3s ease;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .sidebar.collapsed {
-            width: 80px;
-        }
-
-        .sidebar.collapsed .user-details h3,
-        .sidebar.collapsed .user-details p,
-        .sidebar.collapsed .nav-link span:not(.nav-icon),
-        .sidebar.collapsed .logo {
-            display: none;
-        }
-
-        .sidebar.collapsed .user-info {
-            justify-content: center;
-        }
-
-        .sidebar.collapsed .user-details {
-            display: none;
-        }
-
-        .sidebar.collapsed .user-avatar {
-            border-radius: 50%;
-            width: 35px;
-            height: 35px;
-        }
-
-        .sidebar-header {
-            padding: 0 1.5rem 2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 0;
-        }
-
-        .sidebar-toggle {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sidebar-toggle::before {
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
-        }
-
-        .sidebar-toggle:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar.collapsed .sidebar-toggle::before {
-            content: '\f054'; /* fa-chevron-right */
-        }
-
-        .sidebar:not(.collapsed) .sidebar-toggle::before {
-            content: '\f0c9'; /* fa-bars */
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            overflow: hidden;
-        }
-
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .user-details h3 {
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 0.2rem;
-        }
-
-        .user-details p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.85rem;
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 1rem 0;
-        }
-
-        .nav-item {
-            margin: 0.3rem 0;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.9rem 1.5rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
-        }
-
-        .nav-link.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 4px;
-            background: white;
-        }
-
-        .nav-icon {
-            font-size: 1.3rem;
-        }
-
-        /* Main Content */
-        .main-content {
-            margin-left: 260px;
-            padding: 2rem;
-            min-height: 100vh;
-            transition: margin-left 0.3s ease;
-        }
-
-        .sidebar.collapsed ~ .main-content {
-            margin-left: 80px;
-        }
-
-        .top-bar {
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .page-title h1 {
-            font-size: 1.8rem;
-            color: #333;
-            margin-bottom: 0.3rem;
-        }
-
-        .page-title p {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .top-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .notification-btn {
-            position: relative;
-            background: #f5f6fa;
-            border: none;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.3rem;
-            transition: all 0.3s ease;
-        }
-
-        .notification-btn:hover {
-            background: #e8eaf0;
-            transform: scale(1.05);
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: #ff4757;
-            color: white;
-            border-radius: 50%;
-            width: 15px;
-            height: 15px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .logout-btn {
-            padding: 0.7rem 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        /* Stats Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .stat-icon.blue {
-            background: rgba(102, 126, 234, 0.1);
-            color: rgba(19, 48, 177, 0.75);
-        }
-
-        .stat-icon.green {
-            background: rgba(46, 213, 115, 0.1);
-            color: rgba(5, 105, 47, 0.84);
-        }
-
-        .stat-icon.orange {
-            background: rgba(255, 159, 67, 0.1);
-            color: rgba(160, 80, 6, 0.83);
-        }
-
-        .stat-icon.red {
-            background: rgba(255, 71, 87, 0.1);
-            color: rgba(151, 12, 23, 0.66);
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 0.3rem;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .stat-change {
-            font-size: 0.85rem;
-            margin-top: 0.5rem;
-        }
-
-        .stat-change.positive {
-            color: #2ed573;
-        }
-
-        .stat-change.negative {
-            color: #ff4757;
-        }
-
-        .card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .card-title {
-            font-size: 1.3rem;
-            color: #333;
-        }
-
-        .view-all {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .view-all:hover {
-            text-decoration: underline;
-        }
-
-        /* Class List */
-        .class-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .class-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            background: #f8f9fa;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .class-item:hover {
-            background: #e8eaf0;
-            transform: translateX(5px);
-        }
-
-        .class-info h4 {
-            color: #333;
-            margin-bottom: 0.3rem;
-        }
-
-        .class-info p {
-            color: #666;
-            font-size: 0.85rem;
-        }
-
-        .class-stats {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .class-stat {
-            text-align: center;
-        }
-
-        .class-stat-value {
-            font-weight: bold;
-            color: #667eea;
-            font-size: 1.1rem;
-        }
-
-        .class-stat-label {
-            font-size: 0.75rem;
-            color: #999;
-        }
-
-        /* Recent Activity */
-        .activity-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .activity-item {
-            display: flex;
-            gap: 1rem;
-            padding: 1rem;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-
-        .activity-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            flex-shrink: 0;
-        }
-
-        .activity-icon.grade {
-            background: rgba(102, 126, 234, 0.1);
-        }
-
-        .activity-icon.attendance {
-            background: rgba(46, 213, 115, 0.1);
-        }
-
-        .activity-icon.email {
-            background: rgba(255, 159, 67, 0.1);
-        }
-
-        .activity-content h5 {
-            color: #333;
-            margin-bottom: 0.3rem;
-            font-size: 0.95rem;
-        }
-
-        .activity-content p {
-            color: #666;
-            font-size: 0.85rem;
-        }
-
-        .activity-time {
-            color: #999;
-            font-size: 0.75rem;
-            margin-top: 0.3rem;
-        }
-
-        /* Quick Actions */
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .action-btn {
-            padding: 1.5rem;
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            text-decoration: none;
-            color: #5a11a3ff;
-        }
-
-        .action-btn:hover {
-            border-color: #5a11a3ff;
-            background: rgba(102, 126, 234, 0.05);
-            transform: translateY(-3px);
-        }
-
-        .action-icon {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .action-label {
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.active {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .quick-actions {
-                grid-template-columns: 1fr;
-            }
-
-            .top-bar {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .class-stats {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-        }
-
-        .mobile-menu-btn {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-            z-index: 999;
-        }
-
-        @media (max-width: 768px) {
-            .mobile-menu-btn {
-                display: block;
-            }
-        }
-    </style>
+    
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../css/teacher/t-dashboard.css">
 </head>
 <body>
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <div class="logo">Acadex</div>
-            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar"></button>
+            <div class="sidebar-header-column">
+                <img class="sidebar-logo" src="../image/Acadex-logo-white.webp" alt="Acadex Logo">
+            </div>
+            <div class="sidebar-header-column sidebar-header-title">
+                <div class="logo">Acadex</div>
+            </div>
+            <div class="sidebar-header-column sidebar-header-toggle">
+                <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar"></button>
+            </div>
         </div>
 
         <div class="user-info">
@@ -685,6 +173,12 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a href="t-students.php" class="nav-link">
+                    <i class="fas fa-user-graduate nav-icon"></i>
+                    <span>My Students</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="t-grades.php" class="nav-link">
                     <i class="fas fa-edit nav-icon"></i>
                     <span>Grade Management</span>
@@ -703,7 +197,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a href="#" class="nav-link">
+                <a href="t-settings.php" class="nav-link">
                     <i class="fas fa-cog nav-icon"></i>
                     <span>Settings</span>
                 </a>
@@ -717,64 +211,122 @@ try {
         <div class="top-bar">
             <div class="page-title">
                 <h1>Dashboard</h1>
-                <p>Welcome back! <?php echo htmlspecialchars($userFullName); ?>, Here's what's happening today.</p>
             </div>
             <div class="top-actions">
-                <button class="notification-btn">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge">5</span>
-                </button>
+                <div class="notification-wrapper">
+                    <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge"><?php echo $requestCount; ?></span>
+                    </button>
+                    <div class="notification-menu" id="notificationMenu" aria-hidden="true">
+                        <div class="notification-header">
+                            <span>Requests</span>
+                            <span class="notification-count"><?php echo $requestCount; ?></span>
+                        </div>
+                        <div class="notification-list">
+                            <?php if (!empty($studentRequests)): ?>
+                                <?php foreach ($studentRequests as $request): ?>
+                                    <?php
+                                        $requestType = $request['request_type'] ?? 'grade';
+                                        $term = $request['term'] ?? '';
+                                        $termText = '';
+                                        if ($requestType === 'grade') {
+                                            if ($term === 'all') {
+                                                $termText = 'all ';
+                                            } elseif (!empty($term)) {
+                                                $termText = ucfirst($term) . ' ';
+                                            }
+                                        }
+                                        $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                                        $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                                        $description = $requestType === 'attendance'
+                                            ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                    ?>
+                                    <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                                         data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                                         data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                                         data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                                         data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                                        <div class="notification-title"><?php echo htmlspecialchars($title); ?></div>
+                                        <div class="notification-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                                        <div class="notification-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="notification-item">
+                                    <div class="notification-title">No pending requests</div>
+                                    <div class="notification-text">Student requests will appear here.</div>
+                                    <div class="notification-time">---</div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notification-footer">
+                            <button type="button" class="notification-link" id="openRequestsModal">See all →</button>
+                        </div>
+                    </div>
+                </div>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+        <div class="banner">
+            <div class="banner-content">
+                <div class="banner-text">
+                    <h2 style="margin-bottom: 1rem;">Welcome back, <br>
+                    <?php echo htmlspecialchars($userFullName); ?>
+                </h2>
+                    <p>Here is a quick pulse of your classes and the latest activity for today.</p>
                 </div>
-                <div class="stat-value"><?php echo $totalStudents; ?></div>
-                <div class="stat-label">Total Students</div>
-                <div class="stat-change positive">↑ 8% from last semester</div>
+                <div class="banner-art">
+                    <img class="banner-illustration" src="../image/undraw_blogging_38kl.svg" alt="Blogging illustration">
+                </div>
             </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon orange"><i class="fas fa-edit"></i></div>
+            <div class="banner-meta">
+                <div class="meta-item">
+                    <span class="meta-label">Total Students</span>
+                    <span class="meta-value"><?php echo $totalStudents; ?></span>
                 </div>
-                <div class="stat-value"><?php echo $pendingGrades; ?></div>
-                <div class="stat-label">Pending Grades</div>
-                <div class="stat-change negative">↓ Review required</div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon red"><i class="fas fa-envelope"></i></div>
+                <div class="meta-item">
+                    <span class="meta-label">Pending Grades</span>
+                    <span class="meta-value"><?php echo $pendingGrades; ?></span>
                 </div>
-                <div class="stat-value">45</div>
-                <div class="stat-label">Emails Sent Today</div>
-                <div class="stat-change positive">↑ 12 notifications</div>
+                <div class="meta-item">
+                    <span class="meta-label">Emails Sent Today</span>
+                    <span class="meta-value"><?php echo $emailsSentToday; ?></span>
+                </div>
             </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="quick-actions">
             <a href="t-grades.php" class="action-btn">
-                <div class="action-icon"><i class="fas fa-plus"></i></div>
-                <div class="action-label">Record Grades</div>
+                <div class="action-top">
+                    <div class="action-icon"><i class="fas fa-plus"></i></div>
+                    <div class="action-label">Record Grades</div>
+                </div>
+                <div class="action-desc">Log class standing and exam scores in one place.</div>
             </a>
             <a href="t-attendance.php" class="action-btn">
-                <div class="action-icon"><i class="fas fa-check"></i></div>
-                <div class="action-label">Take Attendance</div>
+                <div class="action-top">
+                    <div class="action-icon"><i class="fas fa-check"></i></div>
+                    <div class="action-label">Take Attendance</div>
+                </div>
+                <div class="action-desc">Mark present, absent, late, or excused quickly.</div>
             </a>
-            <a href="#" class="action-btn">
-                <div class="action-icon"><i class="fas fa-envelope"></i></div>
-                <div class="action-label">Send Notification</div>
+            <a href="#" class="action-btn" id="openRequestsModalAction">
+                <div class="action-top">
+                    <div class="action-icon"><i class="fas fa-envelope"></i></div>
+                    <div class="action-label">Send Notification</div>
+                </div>
+                <div class="action-desc">Email reminders and updates to your students.</div>
             </a>
-            <a href="#" class="action-btn">
-                <div class="action-icon"><i class="fas fa-chart-bar"></i></div>
-                <div class="action-label">Generate Report</div>
+            <a href="t-reports.php" class="action-btn">
+                <div class="action-top">
+                    <div class="action-icon"><i class="fas fa-chart-bar"></i></div>
+                    <div class="action-label">Generate Report</div>
+                </div>
+                <div class="action-desc">Create summaries for performance and attendance.</div>
             </a>
         </div>
 
@@ -817,7 +369,7 @@ try {
                                 $attendancePercent = 0;
                             }
                             ?>
-                            <div class="class-item">
+                            <a class="class-item" href="t-classes.php?class_id=<?php echo $class['id']; ?>">
                                 <div class="class-info">
                                     <h4><?php echo htmlspecialchars($class['class_name']); ?></h4>
                                     <p><?php echo htmlspecialchars($class['section']); ?> • <?php echo htmlspecialchars($class['term']); ?></p>
@@ -832,15 +384,138 @@ try {
                                         <div class="class-stat-label">Attendance</div>
                                     </div>
                                 </div>
-                            </div>
+                            </a>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <p>No classes found.</p>
                     <?php endif; ?>
                 </div>
             </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Activity</h3>
+                    <a href="#" class="view-all">View All →</a>
+                </div>
+                <div class="activity-list">
+                    <?php if (!empty($recentActivities)): ?>
+                        <?php foreach ($recentActivities as $activity): ?>
+                            <?php
+                                $type = $activity['activity_type'] ?? 'grade';
+                                $iconClass = $type === 'attendance' ? 'fa-check'
+                                    : ($type === 'email' ? 'fa-envelope' : 'fa-edit');
+                            ?>
+                            <div class="activity-item">
+                                <div class="activity-icon <?php echo htmlspecialchars($type); ?>">
+                                    <i class="fas <?php echo $iconClass; ?>"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <h5><?php echo htmlspecialchars($activity['title']); ?></h5>
+                                    <p><?php echo htmlspecialchars(trim($activity['description'])); ?></p>
+                                    <div class="activity-time"><?php echo htmlspecialchars(formatTimeAgo($activity['activity_time'])); ?></div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="activity-item">
+                            <div class="activity-icon grade">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <div class="activity-content">
+                                <h5>No recent activity</h5>
+                                <p>New updates will appear here once you take attendance, record grades, or send emails.</p>
+                                <div class="activity-time">Just now</div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
     </main>
+
+    <div class="requests-modal" id="requestsModal" aria-hidden="true">
+        <div class="requests-modal-content" role="dialog" aria-modal="true" aria-labelledby="requestsModalTitle">
+            <div class="requests-modal-header">
+                <h3 id="requestsModalTitle">Student Requests</h3>
+                <button class="requests-modal-close" type="button" id="closeRequestsModal" aria-label="Close requests modal">&times;</button>
+            </div>
+            <div class="requests-tabs">
+                <button type="button" class="requests-tab active" data-tab="pending">Pending</button>
+                <button type="button" class="requests-tab" data-tab="completed">Completed</button>
+            </div>
+            <div class="requests-tab-panel active" data-panel="pending">
+                <?php if (!empty($pendingRequestsAll)): ?>
+                    <?php foreach ($pendingRequestsAll as $request): ?>
+                        <?php
+                            $requestType = $request['request_type'] ?? 'grade';
+                            $term = $request['term'] ?? '';
+                            $termText = '';
+                            if ($requestType === 'grade') {
+                                if ($term === 'all') {
+                                    $termText = 'all ';
+                                } elseif (!empty($term)) {
+                                    $termText = ucfirst($term) . ' ';
+                                }
+                            }
+                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                            $description = $requestType === 'attendance'
+                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        ?>
+                        <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
+                            <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                            <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                            <span class="request-status-icon status-pending" aria-hidden="true"><i class="fas fa-clock"></i></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="request-empty">No pending requests.</div>
+                <?php endif; ?>
+            </div>
+            <div class="requests-tab-panel" data-panel="completed">
+                <?php if (!empty($completedRequestsAll)): ?>
+                    <?php foreach ($completedRequestsAll as $request): ?>
+                        <?php
+                            $requestType = $request['request_type'] ?? 'grade';
+                            $term = $request['term'] ?? '';
+                            $termText = '';
+                            if ($requestType === 'grade') {
+                                if ($term === 'all') {
+                                    $termText = 'all ';
+                                } elseif (!empty($term)) {
+                                    $termText = ucfirst($term) . ' ';
+                                }
+                            }
+                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                            $description = $requestType === 'attendance'
+                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        ?>
+                        <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
+                            <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                            <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                            <span class="request-status-icon status-resolved" aria-hidden="true"><i class="fas fa-check"></i></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="request-empty">No completed requests yet.</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
 
     <!-- Mobile Menu Button -->
     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
@@ -849,6 +524,13 @@ try {
         // Sidebar collapse/expand functionality
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebarToggle');
+        const notificationBtn = document.getElementById('notificationBtn');
+        const notificationMenu = document.getElementById('notificationMenu');
+        const openRequestsModal = document.getElementById('openRequestsModal');
+        const requestsModal = document.getElementById('requestsModal');
+        const closeRequestsModal = document.getElementById('closeRequestsModal');
+        const requestTabs = document.querySelectorAll('.requests-tab');
+        const requestPanels = document.querySelectorAll('.requests-tab-panel');
         const mainContent = document.querySelector('.main-content');
 
         // Load initial state from localStorage
@@ -867,22 +549,136 @@ try {
 
         sidebarToggle.addEventListener('click', toggleSidebarMode);
 
+        if (notificationBtn && notificationMenu) {
+            notificationBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpen = notificationMenu.classList.toggle('active');
+                notificationBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                notificationMenu.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+            });
+        }
+
+        function handleRequestClick(item) {
+            const requestType = item.getAttribute('data-request-type');
+            const classId = item.getAttribute('data-class-id');
+            const studentId = item.getAttribute('data-student-id');
+            const requestId = item.getAttribute('data-request-id');
+            if (!requestType || !classId || !studentId) {
+                return;
+            }
+            if (requestId) {
+                const params = new URLSearchParams({ request_id: requestId });
+                fetch('../includes/mark_request_seen.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                }).catch(() => {});
+            }
+            if (requestType === 'attendance') {
+                window.location.href = `t-attendance.php?class_id=${classId}&student_id=${studentId}`;
+            } else {
+                window.location.href = `t-grades.php?class_id=${classId}&student_id=${studentId}`;
+            }
+        }
+
+        document.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', () => {
+                handleRequestClick(item);
+            });
+        });
+
+        document.querySelectorAll('.request-item').forEach(item => {
+            item.addEventListener('click', () => {
+                handleRequestClick(item);
+            });
+        });
+
+        function toggleRequestsModal(show) {
+            if (!requestsModal) return;
+            requestsModal.classList.toggle('active', show);
+            requestsModal.setAttribute('aria-hidden', show ? 'false' : 'true');
+        }
+
+        if (openRequestsModal) {
+            openRequestsModal.addEventListener('click', () => {
+                toggleRequestsModal(true);
+            });
+        }
+
+        const openRequestsModalAction = document.getElementById('openRequestsModalAction');
+        if (openRequestsModalAction) {
+            openRequestsModalAction.addEventListener('click', (event) => {
+                event.preventDefault();
+                toggleRequestsModal(true);
+            });
+        }
+
+        if (closeRequestsModal) {
+            closeRequestsModal.addEventListener('click', () => {
+                toggleRequestsModal(false);
+            });
+        }
+
+        if (requestsModal) {
+            requestsModal.addEventListener('click', (event) => {
+                if (event.target === requestsModal) {
+                    toggleRequestsModal(false);
+                }
+            });
+        }
+
+        requestTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.getAttribute('data-tab');
+                requestTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                requestPanels.forEach(panel => {
+                    panel.classList.toggle('active', panel.getAttribute('data-panel') === target);
+                });
+            });
+        });
+
         // Mobile sidebar toggle (existing)
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('active');
         }
 
+        function showAlert(message, icon = 'info', title = '') {
+            return Swal.fire({ icon, title, text: message });
+        }
+
+        window.alert = (message) => showAlert(message);
+
+        function confirmAction(message, options = {}) {
+            return Swal.fire({
+                title: options.title || 'Are you sure?',
+                text: message,
+                icon: options.icon || 'warning',
+                showCancelButton: true,
+                confirmButtonText: options.confirmText || 'Yes',
+                cancelButtonText: options.cancelText || 'Cancel'
+            }).then(result => result.isConfirmed);
+        }
+
         function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                window.location.href = '../auth/teacher-login.php';
-            }
+            confirmAction('Are you sure you want to logout?', { confirmText: 'Logout' })
+                .then((confirmed) => {
+                    if (confirmed) {
+                        window.location.href = '../auth/teacher-login.php';
+                    }
+                });
         }
 
         // Close sidebar when clicking outside on mobile
         document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('sidebar');
             const menuBtn = document.querySelector('.mobile-menu-btn');
+            if (notificationMenu && notificationBtn && !notificationMenu.contains(event.target) && !notificationBtn.contains(event.target)) {
+                notificationMenu.classList.remove('active');
+                notificationBtn.setAttribute('aria-expanded', 'false');
+                notificationMenu.setAttribute('aria-hidden', 'true');
+            }
 
             if (window.innerWidth <= 768) {
                 if (!sidebar.contains(event.target) && !menuBtn.contains(event.target)) {
@@ -923,6 +719,7 @@ try {
 
         // Call the truncate function on page load
         truncateUserInfo();
+
 
         // Simulate real-time updates (for demonstration)
         setInterval(() => {

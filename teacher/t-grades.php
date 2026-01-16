@@ -11,6 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 // Get user details from session
 $userFullName = $_SESSION['full_name'] ?? 'Unknown User';
 $userEmail = $_SESSION['email'] ?? 'Unknown Email';
+include '../includes/teacher_requests.php';
 
 // Fetch classes for the current teacher
 try {
@@ -33,1097 +34,23 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-            color: #333;
-        }
-
-        /* Sidebar Navigation */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 260px;
-            height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem 0;
-            z-index: 1000;
-            transition: all 0.3s ease;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .sidebar.collapsed {
-            width: 80px;
-        }
-
-        .sidebar.collapsed .user-details h3,
-        .sidebar.collapsed .user-details p,
-        .sidebar.collapsed .nav-link span:not(.nav-icon),
-        .sidebar.collapsed .logo {
-            display: none;
-        }
-
-        .sidebar.collapsed .user-info {
-            justify-content: center;
-        }
-
-        .sidebar.collapsed .user-details {
-            display: none;
-        }
-
-        .sidebar.collapsed .user-avatar {
-            border-radius: 50%;
-            width: 35px;
-            height: 35px;
-        }
-
-        .sidebar-header {
-            padding: 0 1.5rem 2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 0;
-        }
-
-        .sidebar-toggle {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sidebar-toggle::before {
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
-        }
-
-        .sidebar-toggle:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .sidebar.collapsed .sidebar-toggle::before {
-            content: '\f054'; /* fa-chevron-right */
-        }
-
-        .sidebar:not(.collapsed) .sidebar-toggle::before {
-            content: '\f0c9'; /* fa-bars */
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            overflow: hidden;
-        }
-
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .user-details h3 {
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 0.2rem;
-        }
-
-        .user-details p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.85rem;
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 1rem 0;
-        }
-
-        .nav-item {
-            margin: 0.3rem 0;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.9rem 1.5rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
-        }
-
-        .nav-link.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 4px;
-            background: white;
-        }
-
-        .nav-icon {
-            font-size: 1.3rem;
-        }
-
-        /* Main Content */
-        .main-content {
-            margin-left: 260px;
-            padding: 2rem;
-            min-height: 100vh;
-            transition: margin-left 0.3s ease;
-        }
-
-        .sidebar.collapsed ~ .main-content {
-            margin-left: 80px;
-        }
-
-        .top-bar {
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .page-title h1 {
-            font-size: 1.8rem;
-            color: #333;
-            margin-bottom: 0.3rem;
-        }
-
-        .page-title p {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .top-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .notification-btn {
-            position: relative;
-            background: #f5f6fa;
-            border: none;
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.3rem;
-            transition: all 0.3s ease;
-        }
-
-        .notification-btn:hover {
-            background: #e8eaf0;
-            transform: scale(1.05);
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: #ff4757;
-            color: white;
-            border-radius: 50%;
-            width: 15px;
-            height: 15px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .logout-btn {
-            padding: 0.7rem 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .logout-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        /* Grade Management Styles */
-        .grade-management-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            overflow: hidden;
-        }
-
-        .grade-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .grade-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-        }
-
-        .class-selector {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .class-selector select {
-            padding: 0.5rem 1rem;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-weight: 600;
-        }
-
-        .class-selector select option {
-            background: white;
-            color: #333;
-        }
-
-        .grade-actions {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .grade-btn {
-            padding: 0.75rem 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            background: transparent;
-        }
-
-        .grade-btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .grade-content {
-            padding: 2rem;
-        }
-
-        .grade-tabs {
-            display: flex;
-            background: #f5f6fa;
-            border-radius: 10px;
-            margin-bottom: 2rem;
-            overflow: hidden;
-        }
-
-        .grade-tab-btn {
-            flex: 1;
-            padding: 1rem 2rem;
-            background: #f5f6fa;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            color: #666;
-            transition: all 0.3s ease;
-            border-bottom: 2px solid transparent;
-        }
-
-        .grade-tab-btn.active {
-            background: white;
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .grade-tab-btn:hover:not(.active) {
-            background: #e8eaf0;
-        }
-
-        .grade-tab-content {
-            display: none;
-        }
-
-        .grade-tab-content.active {
-            display: block;
-        }
-
-        /* Grade Table Styles */
-        .grade-table-container {
-            overflow-x: auto;
-            margin-bottom: 2rem;
-        }
-
-        .grade-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .grade-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-            font-size: 0.9rem;
-            text-align: left;
-            padding: 1rem;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .grade-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .grade-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .student-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .student-name {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 0.2rem;
-        }
-
-        .student-number {
-            color: #666;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-        }
-
-        .grade-input {
-            width: 80px;
-            padding: 0.3rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            text-align: center;
-            font-weight: 600;
-            transition: border-color 0.3s ease;
-        }
-
-        .grade-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .grade-input.error {
-            border-color: #ff4757;
-            background: #ffeaea;
-        }
-
-        .final-grade {
-            font-weight: bold;
-            color: #667eea;
-            font-size: 1.1rem;
-        }
-
-        .grade-actions-cell {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .grade-action-btn {
-            padding: 0.4rem 0.8rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .grade-action-btn.save {
-            background: #28a745;
-            color: white;
-        }
-
-        .grade-action-btn.save:hover {
-            background: #218838;
-            transform: translateY(-1px);
-        }
-
-        .grade-action-btn.reset {
-            background: #ffc107;
-            color: #333;
-        }
-
-        .grade-action-btn.reset:hover {
-            background: #e0a800;
-            transform: translateY(-1px);
-        }
-
-        .grade-action-btn.edit {
-            background: #007bff;
-            color: white;
-        }
-
-        .grade-action-btn.edit:hover {
-            background: #0056b3;
-            transform: translateY(-1px);
-        }
-
-        .grade-action-btn.get-gwa {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .grade-action-btn.get-gwa:hover {
-            background: #138496;
-            transform: translateY(-1px);
-        }
-
-        .grade-action-btn.email {
-            background: #6f42c1;
-            color: white;
-        }
-
-        .grade-action-btn.email:hover {
-            background: #5a32a3;
-            transform: translateY(-1px);
-        }
-
-        .term-section {
-            margin-bottom: 2rem;
-        }
-
-        .term-section h4 {
-            margin-bottom: 1rem;
-            color: #667eea;
-            font-size: 1.1rem;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.3s ease;
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 5% auto;
-            padding: 2rem;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 600px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            animation: slideIn 0.3s ease;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .modal-header h2 {
-            color: #333;
-            font-size: 1.5rem;
-            margin: 0;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #999;
-            transition: color 0.3s ease;
-        }
-
-        .close-btn:hover {
-            color: #667eea;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-row {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .form-row .form-group {
-            flex: 1;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 2rem;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-secondary {
-            background: #f5f6fa;
-            color: #666;
-        }
-
-        .btn-secondary:hover {
-            background: #e8eaf0;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        /* Statistics Cards */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.active {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .grade-header {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
-            }
-
-            .class-selector {
-                flex-direction: column;
-                width: 100%;
-            }
-
-            .class-selector select {
-                width: 100%;
-            }
-
-            .grade-actions {
-                flex-wrap: wrap;
-            }
-
-            .grade-table-container {
-                overflow-x: scroll;
-            }
-
-            .modal-content {
-                margin: 2% auto;
-                padding: 1.5rem;
-            }
-        }
-
-        .mobile-menu-btn {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-            z-index: 999;
-        }
-
-        @media (max-width: 768px) {
-            .mobile-menu-btn {
-                display: block;
-            }
-        }
-
-        .no-class-selected {
-            text-align: center;
-            color: #999;
-            font-style: italic;
-            padding: 4rem 2rem;
-        }
-
-        .no-class-selected i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            color: #ddd;
-        }
-
-        /* Search and Filter */
-        .search-filter-bar {
-            background: white;
-            padding: 1rem 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 1.5rem;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            position: relative;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            padding-left: 3rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .search-box input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        .search-box i {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-        }
-
-        .filter-select {
-            padding: 0.75rem 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .filter-select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* Export Menu */
-        .export-menu {
-            position: relative;
-        }
-
-        .export-dropdown {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: 100%;
-            margin-top: 0.5rem;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
-            min-width: 180px;
-            z-index: 100;
-        }
-
-        .export-dropdown.active {
-            display: block;
-        }
-
-        .export-option {
-            padding: 0.75rem 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .export-option:first-child {
-            border-radius: 10px 10px 0 0;
-        }
-
-        .export-option:last-child {
-            border-radius: 0 0 10px 10px;
-        }
-
-        .export-option:hover {
-            background: #f8f9fa;
-            color: #667eea;
-        }
-
-        /* Accordion Styles */
-        .accordion-item {
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-        }
-
-        .accordion-item:hover {
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .accordion-button {
-            width: 100%;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border: none;
-            padding: 1.5rem;
-            text-align: left;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
-            font-size: 1rem;
-        }
-
-        .accordion-button:hover {
-            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-        }
-
-        .accordion-button:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
-        }
-
-        .assessment-header {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            flex: 1;
-        }
-
-        .assessment-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }
-
-        .assessment-info {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .assessment-term,
-        .assessment-component,
-        .assessment-max-score {
-            background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-        }
-
-        .assessment-term {
-            background: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-            border-color: rgba(40, 167, 69, 0.2);
-        }
-
-        .assessment-component {
-            background: rgba(255, 193, 7, 0.1);
-            color: #ffc107;
-            border-color: rgba(255, 193, 7, 0.2);
-        }
-
-        .assessment-max-score {
-            background: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-            border-color: rgba(220, 53, 69, 0.2);
-        }
-
-        .accordion-icon {
-            font-size: 1.2rem;
-            color: #667eea;
-            transition: transform 0.3s ease;
-            margin-left: 1rem;
-        }
-
-        .accordion-icon.rotated {
-            transform: rotate(180deg);
-        }
-
-        .accordion-panel {
-            display: none;
-            background: white;
-            border-top: 1px solid #e0e0e0;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .accordion-panel[style*="display: block"] {
-            max-height: 1000px; /* Adjust based on content */
-        }
-
-        .assessment-scores {
-            padding: 1.5rem;
-        }
-
-        /* Assessment Table Styles */
-        .assessment-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .assessment-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-            font-size: 0.9rem;
-            text-align: left;
-            padding: 1rem;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .assessment-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .assessment-table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .score-input {
-            width: 80px;
-            padding: 0.3rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            text-align: center;
-            font-weight: 600;
-            transition: border-color 0.3s ease;
-        }
-
-        .score-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn-sm {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.85rem;
-            border-radius: 6px;
-        }
-
-        .email-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.55);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-
-        .email-modal {
-            background: white;
-            padding: 1.5rem;
-            width: 350px;
-            border-radius: 10px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
-        }
-
-        .email-modal h2 {
-            margin-bottom: 1rem;
-        }
-
-        .modal-input {
-            width: 100%;
-            padding: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .modal-actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 1rem;
-        }
-    </style>
+    
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../css/teacher/t-grades.css">
 </head>
 <body>
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <div class="logo">Acadex</div>
-            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar"></button>
+            <div class="sidebar-header-column">
+                <img class="sidebar-logo" src="../image/Acadex-logo-white.webp" alt="Acadex Logo">
+            </div>
+            <div class="sidebar-header-column sidebar-header-title">
+                <div class="logo">Acadex</div>
+            </div>
+            <div class="sidebar-header-column sidebar-header-toggle">
+                <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar"></button>
+            </div>
         </div>
 
         <div class="user-info">
@@ -1150,6 +77,12 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a href="t-students.php" class="nav-link">
+                    <i class="fas fa-user-graduate nav-icon"></i>
+                    <span>My Students</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link active">
                     <i class="fas fa-edit nav-icon"></i>
                     <span>Grade Management</span>
@@ -1168,7 +101,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a href="#" class="nav-link">
+                <a href="t-settings.php" class="nav-link">
                     <i class="fas fa-cog nav-icon"></i>
                     <span>Settings</span>
                 </a>
@@ -1182,14 +115,62 @@ try {
         <div class="top-bar">
             <div class="page-title">
                 <h1>Grade Management</h1>
-                <p>Manage student grades for your classes.</p>
             </div>
             <div class="top-actions">
-                <button class="notification-btn">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge">3</span>
-                </button>
-                <button class="logout-btn" onclick="logout()">Logout</button>
+                <div class="notification-wrapper">
+                    <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge"><?php echo $requestCount; ?></span>
+                    </button>
+                    <div class="notification-menu" id="notificationMenu" aria-hidden="true">
+                        <div class="notification-header">
+                            <span>Requests</span>
+                            <span class="notification-count"><?php echo $requestCount; ?></span>
+                        </div>
+                        <div class="notification-list">
+                            <?php if (!empty($studentRequests)): ?>
+                                <?php foreach ($studentRequests as $request): ?>
+                                    <?php
+                                        $requestType = $request['request_type'] ?? 'grade';
+                                        $term = $request['term'] ?? '';
+                                        $termText = '';
+                                        if ($requestType === 'grade') {
+                                            if ($term === 'all') {
+                                                $termText = 'all ';
+                                            } elseif (!empty($term)) {
+                                                $termText = ucfirst($term) . ' ';
+                                            }
+                                        }
+                                        $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                                        $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                                        $description = $requestType === 'attendance'
+                                            ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                    ?>
+                                    <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                                         data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                                         data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                                         data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                                         data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                                        <div class="notification-title"><?php echo htmlspecialchars($title); ?></div>
+                                        <div class="notification-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                                        <div class="notification-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="notification-item">
+                                    <div class="notification-title">No pending requests</div>
+                                    <div class="notification-text">Student requests will appear here.</div>
+                                    <div class="notification-time">---</div>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="notification-footer">
+                            <button type="button" class="notification-link" id="openRequestsModal">See all →</button>
+                        </div>
+                    </div>
+                </div>
+<button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
 
@@ -1302,6 +283,11 @@ try {
                                 </tbody>
                             </table>
                         </div>
+                        <div class="pagination-controls" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem;">
+                            <button id="prevPageBtn" class="grade-btn" onclick="changePage(-1)">Previous</button>
+                            <span id="pageInfo">Page 1 of 1</span>
+                            <button id="nextPageBtn" class="grade-btn" onclick="changePage(1)">Next</button>
+                        </div>
                         <div class="no-students" id="noStudentsMessage" style="display: none;">
                             <p>No students enrolled in this class yet.</p>
                         </div>
@@ -1341,12 +327,95 @@ try {
                         </div>
                         <div id="assessmentsAccordion" class="placeholder-content" style="margin-top: 2rem;">
                             <!-- Assessments will be loaded here -->
-                        </div>
+</div>
                     </div>
                 </div>
             </div>
         </div>
     </main>
+
+    <div class="requests-modal" id="requestsModal" aria-hidden="true">
+        <div class="requests-modal-content" role="dialog" aria-modal="true" aria-labelledby="requestsModalTitle">
+            <div class="requests-modal-header">
+                <h3 id="requestsModalTitle">Student Requests</h3>
+                <button class="requests-modal-close" type="button" id="closeRequestsModal" aria-label="Close requests modal">&times;</button>
+            </div>
+            <div class="requests-tabs">
+                <button type="button" class="requests-tab active" data-tab="pending">Pending</button>
+                <button type="button" class="requests-tab" data-tab="completed">Completed</button>
+            </div>
+            <div class="requests-tab-panel active" data-panel="pending">
+                <?php if (!empty($pendingRequestsAll)): ?>
+                    <?php foreach ($pendingRequestsAll as $request): ?>
+                        <?php
+                            $requestType = $request['request_type'] ?? 'grade';
+                            $term = $request['term'] ?? '';
+                            $termText = '';
+                            if ($requestType === 'grade') {
+                                if ($term === 'all') {
+                                    $termText = 'all ';
+                                } elseif (!empty($term)) {
+                                    $termText = ucfirst($term) . ' ';
+                                }
+                            }
+                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                            $description = $requestType === 'attendance'
+                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        ?>
+                        <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
+                            <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                            <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                            <span class="request-status-icon status-pending" aria-hidden="true"><i class="fas fa-clock"></i></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="request-empty">No pending requests.</div>
+                <?php endif; ?>
+            </div>
+            <div class="requests-tab-panel" data-panel="completed">
+                <?php if (!empty($completedRequestsAll)): ?>
+                    <?php foreach ($completedRequestsAll as $request): ?>
+                        <?php
+                            $requestType = $request['request_type'] ?? 'grade';
+                            $term = $request['term'] ?? '';
+                            $termText = '';
+                            if ($requestType === 'grade') {
+                                if ($term === 'all') {
+                                    $termText = 'all ';
+                                } elseif (!empty($term)) {
+                                    $termText = ucfirst($term) . ' ';
+                                }
+                            }
+                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                            $description = $requestType === 'attendance'
+                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        ?>
+                        <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
+                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
+                            <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
+                            <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
+                            <span class="request-status-icon status-resolved" aria-hidden="true"><i class="fas fa-check"></i></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="request-empty">No completed requests yet.</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
 
     <!-- Mobile Menu Button -->
     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
@@ -1422,7 +491,7 @@ try {
     <div id="emailGradeModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Send Grade to Student</h2>
+                <h2>Send Grade to <span id="emailStudentNameHeader">--</span></h2>
                 <button class="close-btn" onclick="closeEmailModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -1956,6 +1025,37 @@ try {
         // Call the truncate function on page load
         truncateUserInfo();
 
+        async function initFromNotification() {
+            const params = new URLSearchParams(window.location.search);
+            const classId = params.get('class_id');
+            const studentId = params.get('student_id');
+            if (!classId || !studentId) {
+                return;
+            }
+            const classSelector = document.getElementById('classSelector');
+            if (!classSelector) {
+                return;
+            }
+            const option = Array.from(classSelector.options).find(opt => opt.value === classId);
+            if (!option) {
+                return;
+            }
+            classSelector.value = classId;
+            await loadClassGrades();
+            highlightStudentRow(studentId);
+        }
+
+        function highlightStudentRow(studentId) {
+            const row = document.querySelector(`#gradeTableBody tr[data-student-id="${studentId}"]`);
+            if (!row) {
+                return;
+            }
+            row.classList.add('highlight-row');
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        document.addEventListener('DOMContentLoaded', initFromNotification);
+
         // Grade weights for calculation (will be loaded from server)
         let weights = {
             class_standing: 0.7, // 70%
@@ -1988,15 +1088,38 @@ try {
             sidebar.classList.toggle('active');
         }
 
+        function showAlert(message, icon = 'info', title = '') {
+            return Swal.fire({ icon, title, text: message });
+        }
+
+        window.alert = (message) => showAlert(message);
+
+        function confirmAction(message, options = {}) {
+            return Swal.fire({
+                title: options.title || 'Are you sure?',
+                text: message,
+                icon: options.icon || 'warning',
+                showCancelButton: true,
+                confirmButtonText: options.confirmText || 'Yes',
+                cancelButtonText: options.cancelText || 'Cancel'
+            }).then(result => result.isConfirmed);
+        }
+
         function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                window.location.href = '../auth/teacher-login.php';
-            }
+            confirmAction('Are you sure you want to logout?', { confirmText: 'Logout' })
+                .then((confirmed) => {
+                    if (confirmed) {
+                        window.location.href = '../auth/teacher-login.php';
+                    }
+                });
         }
 
         // Grade Management Functions
         let currentClassId = null;
         let currentStudents = [];
+        let filteredStudents = [];
+        let currentPage = 1;
+        const pageSize = 10;
         let currentGradesMap = {};
         let currentCalculatedGrades = {};
         let currentTerm = null;
@@ -2146,7 +1269,8 @@ try {
 
                 // Render grade table
                 console.log('Rendering grade table...');
-                renderGradeTable(currentStudents, gradesMap, currentCalculatedGrades);
+                filteredStudents = [...currentStudents];
+                filterStudents();
 
                 // Update statistics
                 console.log('Updating statistics...');
@@ -2164,28 +1288,47 @@ try {
 
 
 
+        function formatStudentName(student) {
+            const middle = student.middle_initial ? ` ${student.middle_initial}.` : '';
+            const suffix = student.suffix ? ` ${student.suffix}` : '';
+            return `${student.last_name}, ${student.first_name}${middle}${suffix}`;
+        }
+
         function renderGradeTable(students, gradesMap = {}, calculatedGrades = {}) {
             const tableBody = document.getElementById('gradeTableBody');
             const noStudentsMessage = document.getElementById('noStudentsMessage');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+
+            const totalPages = Math.max(1, Math.ceil(students.length / pageSize));
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
 
             if (students.length === 0) {
                 tableBody.innerHTML = '';
                 noStudentsMessage.style.display = 'block';
+                if (pageInfo) pageInfo.textContent = 'No students';
+                if (prevBtn) prevBtn.disabled = true;
+                if (nextBtn) nextBtn.disabled = true;
                 return;
             }
 
             noStudentsMessage.style.display = 'none';
-            tableBody.innerHTML = students.map(student => {
+            const start = (currentPage - 1) * pageSize;
+            const pageStudents = students.slice(start, start + pageSize);
+
+            tableBody.innerHTML = pageStudents.map(student => {
                 const studentCalGrades = calculatedGrades[student.student_number] || {};
                 const prelim = studentCalGrades.prelim || 0;
                 const midterm = studentCalGrades.midterm || 0;
                 const finals = studentCalGrades.finals || 0;
                 const finalGrade = studentCalGrades.final_grade || 0;
                 return `
-                    <tr>
+                    <tr data-student-id="${student.id}">
                         <td>
                             <div class="student-info">
-                                <div class="student-name">${student.first_name} ${student.last_name}</div>
+                                <div class="student-name">${formatStudentName(student)}</div>
                                 <div class="student-number">${student.student_number}</div>
                             </div>
                         </td>
@@ -2201,6 +1344,10 @@ try {
                     </tr>
                 `;
             }).join('');
+
+            if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+            if (prevBtn) prevBtn.disabled = currentPage === 1;
+            if (nextBtn) nextBtn.disabled = currentPage === totalPages;
         }
 
         function calculateFinalGrade(grades) {
@@ -2624,7 +1771,7 @@ try {
                     closeEditGradesModal();
 
                     // Re-render with updated data
-                    renderGradeTable(currentStudents, currentGradesMap, currentCalculatedGrades);
+                    filterStudents();
                     updateStatistics();
 
                 } else {
@@ -2690,7 +1837,7 @@ try {
                                     });
 
                                     // Re-render table with updated final grades
-                                    renderGradeTable(currentStudents, currentGradesMap, currentCalculatedGrades);
+                                    filterStudents();
                                     updateStatistics();
 
                                     // Show GWA summary in modal
@@ -2747,7 +1894,8 @@ try {
         }
 
         async function emailToStudent(studentId) {
-            if (!confirm('Are you sure you want to email the grade report to this student?')) {
+            const confirmed = await confirmAction('Are you sure you want to email the grade report to this student?', { confirmText: 'Email' });
+            if (!confirmed) {
                 return;
             }
 
@@ -2796,6 +1944,7 @@ try {
 
             document.getElementById('emailStudentId').value = studentId;
             document.getElementById('emailStudentName').textContent = student.first_name + ' ' + student.last_name;
+            document.getElementById('emailStudentNameHeader').textContent = student.first_name;
             document.getElementById('emailStudentEmail').textContent = student.student_email;
             document.getElementById('emailTerm').value = "";
             document.getElementById('emailComponent').value = "";
@@ -2948,7 +2097,7 @@ try {
             }
 
             // Get the grades for the selected term
-            const termGrades = currentGradesMap[studentId]?.terms?.[normalizedTerm];
+            const termGrades = currentEmailStudentGrades[normalizedTerm] || currentGradesMap[studentId]?.terms?.[normalizedTerm];
             console.log('Term grades for emailing:', termGrades);
 
             if (!termGrades || typeof termGrades !== 'object') {
@@ -2974,14 +2123,21 @@ try {
             }
 
             if (!component) {
-                if (!confirm(
+                closeEmailModal();
+                const confirmMessage =
                     `Send all ${normalizedTerm} grades to ${student.first_name} ${student.last_name}?\n\n` +
                     `Class Standing: ${termGrades.class_standing || '--'}\n` +
                     `Exam: ${termGrades.exam || '--'}\n` +
-                    `Total Grade: ${totalGrade.toFixed(2)}\n`
-                )) return;
-            }else{
-                if (!confirm(`Are you sure you want to email the Grade: ${grade || '--'} to ${student.first_name} ${student.last_name}?`)) {
+                    `Total Grade: ${totalGrade.toFixed(2)}\n`;
+                const confirmed = await confirmAction(confirmMessage, { confirmText: 'Send' });
+                if (!confirmed) return;
+            } else {
+                closeEmailModal();
+                const confirmed = await confirmAction(
+                    `Are you sure you want to email the Grade: ${grade || '--'} to ${student.first_name} ${student.last_name}?`,
+                    { confirmText: 'Send' }
+                );
+                if (!confirmed) {
                     return;
                 }
             }
@@ -3021,7 +2177,6 @@ try {
 
                 if (result.success) {
                     alert('Grade emailed successfully to the student.');
-                    closeEmailModal();
                 } else {
                     alert('Failed to send email: ' + result.message);
                 }
@@ -3359,35 +2514,35 @@ try {
         function filterStudents() {
             const searchInput = document.getElementById('studentSearch').value.toLowerCase();
             const filterValue = document.getElementById('gradeFilter').value;
-            const tableBody = document.getElementById('gradeTableBody');
-            const rows = tableBody.querySelectorAll('tr');
 
-            rows.forEach(row => {
-                const studentName = row.querySelector('.student-name').textContent.toLowerCase();
-                const studentNumber = row.querySelector('.student-number').textContent.toLowerCase();
-                const finalGradeText = row.querySelector('.final-grade').textContent;
-                const finalGrade = finalGradeText === '--' ? 0 : parseFloat(finalGradeText);
+            filteredStudents = currentStudents.filter(student => {
+                const name = formatStudentName(student).toLowerCase();
+                const number = String(student.student_number || '').toLowerCase();
+                const finalGrade = parseFloat((currentCalculatedGrades[student.student_number]?.final_grade) || 0);
 
-                let show = true;
-
-                // Search filter (name or number)
-                if (searchInput && !studentName.includes(searchInput) && !studentNumber.includes(searchInput)) {
-                    show = false;
+                if (searchInput && !name.includes(searchInput) && !number.includes(searchInput)) {
+                    return false;
                 }
 
-                // Grade filter
-                if (filterValue === 'graded' && finalGrade === 0) {
-                    show = false;
-                } else if (filterValue === 'ungraded' && finalGrade > 0) {
-                    show = false;
-                } else if (filterValue === 'passing' && finalGrade < 75) {
-                    show = false;
-                } else if (filterValue === 'failing' && finalGrade >= 75) {
-                    show = false;
-                }
+                if (filterValue === 'graded' && finalGrade === 0) return false;
+                if (filterValue === 'ungraded' && finalGrade > 0) return false;
+                if (filterValue === 'passing' && finalGrade < 75) return false;
+                if (filterValue === 'failing' && finalGrade >= 75) return false;
 
-                row.style.display = show ? '' : 'none';
+                return true;
             });
+
+            currentPage = 1;
+            renderGradeTable(filteredStudents, currentGradesMap, currentCalculatedGrades);
+        }
+
+        function changePage(delta) {
+            const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
+            const nextPage = Math.min(totalPages, Math.max(1, currentPage + delta));
+            if (nextPage !== currentPage) {
+                currentPage = nextPage;
+                renderGradeTable(filteredStudents, currentGradesMap, currentCalculatedGrades);
+            }
         }
 
         // Close modals when clicking outside
@@ -3674,7 +2829,7 @@ try {
                             <tr>
                                 <td>
                                     <div class="student-info">
-                                        <div class="student-name">${score.first_name} ${score.last_name}</div>
+                                        <div class="student-name">${formatStudentName(score)}</div>
                                         <div class="student-number">${score.student_number}</div>
                                     </div>
                                 </td>
@@ -3915,7 +3070,11 @@ try {
                     };
 
                     // Show recalculation notice and recalculate all grades
-                    if (confirm('Weights have been updated. Would you like to recalculate all student grades with the new weights?')) {
+                    const confirmed = await confirmAction(
+                        'Weights have been updated. Would you like to recalculate all student grades with the new weights?',
+                        { confirmText: 'Recalculate' }
+                    );
+                    if (confirmed) {
                         await recalculateAllGrades();
                     }
 
@@ -3983,6 +3142,119 @@ try {
                 alert('Error recalculating grades: ' + error.message + '\n\nPlease try again or contact support.');
             }
         }
-    </script>
+    
+        
+
+        
+
+        
+
+        
+
+        
+
+        
+
+        
+
+        const notificationBtn = document.getElementById('notificationBtn');
+        const notificationMenu = document.getElementById('notificationMenu');
+        const openRequestsModal = document.getElementById('openRequestsModal');
+        const requestsModal = document.getElementById('requestsModal');
+        const closeRequestsModal = document.getElementById('closeRequestsModal');
+        const requestTabs = document.querySelectorAll('.requests-tab');
+        const requestPanels = document.querySelectorAll('.requests-tab-panel');
+
+        if (notificationBtn && notificationMenu) {
+            notificationBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpen = notificationMenu.classList.toggle('active');
+                notificationBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                notificationMenu.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+            });
+        }
+
+        function handleRequestClick(item) {
+            const requestType = item.getAttribute('data-request-type');
+            const classId = item.getAttribute('data-class-id');
+            const studentId = item.getAttribute('data-student-id');
+            const requestId = item.getAttribute('data-request-id');
+            if (!requestType || !classId || !studentId) {
+                return;
+            }
+            if (requestId) {
+                const params = new URLSearchParams({ request_id: requestId });
+                fetch('../includes/mark_request_seen.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                }).catch(() => {});
+            }
+            if (requestType === 'attendance') {
+                window.location.href = `t-attendance.php?class_id=${classId}&student_id=${studentId}`;
+            } else {
+                window.location.href = `t-grades.php?class_id=${classId}&student_id=${studentId}`;
+            }
+        }
+
+        document.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', () => {
+                handleRequestClick(item);
+            });
+        });
+
+        document.querySelectorAll('.request-item').forEach(item => {
+            item.addEventListener('click', () => {
+                handleRequestClick(item);
+            });
+        });
+
+        function toggleRequestsModal(show) {
+            if (!requestsModal) return;
+            requestsModal.classList.toggle('active', show);
+            requestsModal.setAttribute('aria-hidden', show ? 'false' : 'true');
+        }
+
+        if (openRequestsModal) {
+            openRequestsModal.addEventListener('click', () => {
+                toggleRequestsModal(true);
+            });
+        }
+
+        if (closeRequestsModal) {
+            closeRequestsModal.addEventListener('click', () => {
+                toggleRequestsModal(false);
+            });
+        }
+
+        if (requestsModal) {
+            requestsModal.addEventListener('click', (event) => {
+                if (event.target === requestsModal) {
+                    toggleRequestsModal(false);
+                }
+            });
+        }
+
+        requestTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.getAttribute('data-tab');
+                requestTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                requestPanels.forEach(panel => {
+                    panel.classList.toggle('active', panel.getAttribute('data-panel') === target);
+                });
+            });
+        });
+
+        document.addEventListener('click', function(event) {
+            if (notificationMenu && notificationBtn && !notificationMenu.contains(event.target) && !notificationBtn.contains(event.target)) {
+                notificationMenu.classList.remove('active');
+                notificationBtn.setAttribute('aria-expanded', 'false');
+                notificationMenu.setAttribute('aria-hidden', 'true');
+            }
+        });
+</script>
+
+
 </body>
 </html>

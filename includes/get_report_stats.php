@@ -54,8 +54,8 @@ try {
                 $top_score = $grade['final_grade'];
                 
                 // Fetch student name
-                $stmt_student_name = $pdo->prepare("SELECT first_name, last_name FROM students WHERE student_id = ?");
-                $stmt_student_name->execute([$grade['student_id']]);
+                $stmt_student_name = $pdo->prepare("SELECT first_name, last_name FROM students WHERE student_number = ?");
+                $stmt_student_name->execute([$grade['student_number']]);
                 $student_name_data = $stmt_student_name->fetch(PDO::FETCH_ASSOC);
 
                 if ($student_name_data) {

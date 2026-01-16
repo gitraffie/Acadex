@@ -69,6 +69,42 @@ try {
         )
     ");
 
+    // Create email logs table
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS email_logs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            teacher_email VARCHAR(255) NOT NULL,
+            student_email VARCHAR(255) NOT NULL,
+            class_id INT NULL,
+            email_type VARCHAR(50) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_teacher_date (teacher_email, created_at)
+        )
+    ");
+
+    // Create student requests table
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS student_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            student_id INT NOT NULL,
+            student_number VARCHAR(50) NOT NULL,
+            student_name VARCHAR(255) NOT NULL,
+            student_email VARCHAR(255) NOT NULL,
+            class_id INT NULL,
+            class_name VARCHAR(255) NULL,
+            teacher_email VARCHAR(255) NOT NULL,
+            request_type ENUM('grade','attendance') NOT NULL,
+            term ENUM('prelim','midterm','finals','all') NULL,
+            message TEXT NULL,
+            status ENUM('pending','resolved') NOT NULL DEFAULT 'pending',
+            resolved_at TIMESTAMP NULL,
+            resolved_by VARCHAR(255) NULL,
+            is_seen TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_teacher_status (teacher_email, status, created_at)
+        )
+    ");
+
     // Add session column if it doesn't exist (for existing tables)
     $pdo->exec("
         ALTER TABLE attendance
