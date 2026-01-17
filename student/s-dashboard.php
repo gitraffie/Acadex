@@ -48,10 +48,6 @@ try {
             }
         }
 
-        if ($classId === null && !empty($enrolledClasses)) {
-            $classId = (int)$enrolledClasses[0]['id'];
-        }
-
         if ($classId) {
             foreach ($enrolledClasses as $classRow) {
                 if ((int)$classRow['id'] === (int)$classId) {
