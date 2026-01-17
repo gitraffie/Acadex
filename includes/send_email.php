@@ -686,8 +686,13 @@ if ($action == 'email_attendance_history') {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT id FROM students WHERE id = ? AND teacher_email = ?");
-    $stmt->execute([$student_id, $_SESSION['email'] ?? '']);
+    $stmt = $pdo->prepare("
+        SELECT sc.id
+        FROM student_classes sc
+        JOIN classes c ON c.id = sc.class_id AND c.user_email = ?
+        WHERE sc.student_id = ? AND sc.class_id = ?
+    ");
+    $stmt->execute([$_SESSION['email'] ?? '', $student_id, $class_id]);
     if (!$stmt->fetch()) {
         echo json_encode(['success' => false, 'message' => 'Unauthorized']);
         exit;

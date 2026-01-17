@@ -18,7 +18,7 @@ if (!$class_id) {
 
 try {
     // Get total students in class
-    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM students WHERE class_id = ?");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM student_classes WHERE class_id = ?");
     $stmt->execute([$class_id]);
     $total_students = $stmt->fetch()['total'];
 
@@ -54,8 +54,14 @@ try {
                 $top_score = $grade['final_grade'];
                 
                 // Fetch student name
-                $stmt_student_name = $pdo->prepare("SELECT first_name, last_name FROM students WHERE student_number = ?");
-                $stmt_student_name->execute([$grade['student_number']]);
+                $stmt_student_name = $pdo->prepare("
+                    SELECT s.first_name, s.last_name
+                    FROM students s
+                    JOIN student_classes sc ON sc.student_id = s.id
+                    WHERE s.student_number = ? AND sc.class_id = ?
+                    LIMIT 1
+                ");
+                $stmt_student_name->execute([$grade['student_number'], $class_id]);
                 $student_name_data = $stmt_student_name->fetch(PDO::FETCH_ASSOC);
 
                 if ($student_name_data) {

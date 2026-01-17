@@ -16,9 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    // Fetch students for the current teacher where class_id is NULL or 0 (unassigned)
-    $stmt = $pdo->prepare("SELECT id, student_number, student_email, first_name, last_name, middle_initial, suffix, program FROM students WHERE teacher_email = ? AND (class_id IS NULL OR class_id = 0) ORDER BY last_name, first_name");
-    $stmt->execute([$_SESSION['email']]);
+    // Fetch students with no enrollments yet
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.student_number, s.student_email, s.first_name, s.last_name, s.middle_initial, s.suffix, s.program
+        FROM students s
+        LEFT JOIN student_classes sc ON sc.student_id = s.id
+        WHERE sc.student_id IS NULL
+        ORDER BY s.last_name, s.first_name
+    ");
+    $stmt->execute();
     $rawStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Format students data with full_name

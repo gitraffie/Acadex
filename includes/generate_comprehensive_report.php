@@ -60,12 +60,12 @@ try {
             }
         }
         if ($selected_class_id) {
-            $class_where = " AND s.class_id = ?";
+            $class_where = " AND sc.class_id = ?";
             $class_params[] = $selected_class_id;
         }
     } elseif (!empty($class_ids)) {
         $placeholders = str_repeat('?,', count($class_ids) - 1) . '?';
-        $class_where = " AND s.class_id IN ($placeholders)";
+        $class_where = " AND sc.class_id IN ($placeholders)";
         $class_params = $class_ids;
     }
 
@@ -140,7 +140,8 @@ function generateOverviewReport($pdo, $class_where, $class_params, $term_filter,
             AVG(cg.final_grade) as average_grade,
             COUNT(CASE WHEN cg.final_grade < 75 THEN 1 END) as at_risk_students
         FROM students s
-        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND s.class_id = cg.class_id
+        JOIN student_classes sc ON sc.student_id = s.id
+        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND sc.class_id = cg.class_id
         WHERE 1=1 $class_where
     ";
 
@@ -162,7 +163,8 @@ function generateOverviewReport($pdo, $class_where, $class_params, $term_filter,
         SELECT
             COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(*) as attendance_rate
         FROM attendance a
-        JOIN students s ON a.student_number = s.student_number AND a.class_id = s.class_id
+        JOIN student_classes sc ON sc.class_id = a.class_id
+        JOIN students s ON a.student_number = s.student_number AND sc.student_id = s.id
         WHERE a.attendance_date BETWEEN ? AND ? $class_where
     ";
 
@@ -184,7 +186,8 @@ function generateOverviewReport($pdo, $class_where, $class_params, $term_filter,
             END as grade_range,
             COUNT(*) as count
         FROM calculated_grades cg
-        JOIN students s ON cg.student_number = s.student_number AND cg.class_id = s.class_id
+        JOIN student_classes sc ON sc.class_id = cg.class_id
+        JOIN students s ON cg.student_number = s.student_number AND sc.student_id = s.id
         WHERE cg.final_grade > 0 $class_where
         GROUP BY
             CASE
@@ -210,7 +213,8 @@ function generateOverviewReport($pdo, $class_where, $class_params, $term_filter,
         $query = "
             SELECT AVG(cg.final_grade) as avg_grade
             FROM calculated_grades cg
-            JOIN students s ON cg.student_number = s.student_number AND cg.class_id = s.class_id
+            JOIN student_classes sc ON sc.class_id = cg.class_id
+            JOIN students s ON cg.student_number = s.student_number AND sc.student_id = s.id
             WHERE cg.created_at BETWEEN ? AND ? $class_where
         ";
 
@@ -263,8 +267,9 @@ function generateGradesReport($pdo, $class_where, $class_params, $term_filter, $
             cg.finals,
             cg.final_grade
         FROM students s
-        JOIN classes c ON s.class_id = c.id
-        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND s.class_id = cg.class_id
+        JOIN student_classes sc ON sc.student_id = s.id
+        JOIN classes c ON sc.class_id = c.id
+        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND sc.class_id = cg.class_id
         WHERE 1=1 $class_where $grade_where
         ORDER BY c.class_name, s.last_name, s.first_name
     ";
@@ -298,7 +303,8 @@ function generateAttendanceReport($pdo, $class_where, $class_params, $date_from,
             a.status,
             a.time_recorded
         FROM attendance a
-        JOIN students s ON a.student_number = s.student_number AND a.class_id = s.class_id
+        JOIN student_classes sc ON sc.class_id = a.class_id
+        JOIN students s ON a.student_number = s.student_number AND sc.student_id = s.id
         JOIN classes c ON a.class_id = c.id
         WHERE a.attendance_date BETWEEN ? AND ? $class_where
         ORDER BY a.attendance_date DESC, s.last_name, s.first_name
@@ -319,7 +325,8 @@ function generateAttendanceReport($pdo, $class_where, $class_params, $date_from,
             COUNT(*) as total_count,
             ROUND(COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(*), 2) as attendance_rate
         FROM attendance a
-        JOIN students s ON a.student_number = s.student_number AND a.class_id = s.class_id
+        JOIN student_classes sc ON sc.class_id = a.class_id
+        JOIN students s ON a.student_number = s.student_number AND sc.student_id = s.id
         JOIN classes c ON a.class_id = c.id
         WHERE a.attendance_date BETWEEN ? AND ? $class_where
         GROUP BY s.student_number, s.first_name, s.last_name, c.class_name
@@ -354,8 +361,9 @@ function generatePerformanceReport($pdo, $class_where, $class_params, $student_f
             cg.final_grade,
             cg.created_at
         FROM students s
-        JOIN classes c ON s.class_id = c.id
-        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND s.class_id = cg.class_id
+        JOIN student_classes sc ON sc.student_id = s.id
+        JOIN classes c ON sc.class_id = c.id
+        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND sc.class_id = cg.class_id
         WHERE 1=1 $class_where
         ORDER BY s.last_name, s.first_name
     ";

@@ -42,10 +42,11 @@ $offset = ($page - 1) * $perPage;
 // Build the base query parts
 $baseQuery = "
     FROM students s
-    LEFT JOIN classes c ON s.class_id = c.id AND c.user_email = ?
-    WHERE s.teacher_email = ?
+    LEFT JOIN student_classes sc ON sc.student_id = s.id
+    LEFT JOIN classes c ON c.id = sc.class_id AND c.user_email = ?
+    WHERE 1=1
 ";
-$params = [$userEmail, $userEmail];
+$params = [$userEmail];
 
 if (!empty($search)) {
     $baseQuery .= " AND (s.first_name LIKE ? OR s.last_name LIKE ? OR s.student_number LIKE ? OR s.student_email LIKE ?)";
@@ -54,17 +55,17 @@ if (!empty($search)) {
 }
 
 if ($classFilter > 0) {
-    $baseQuery .= " AND s.class_id = ?";
+    $baseQuery .= " AND sc.class_id = ? AND c.id IS NOT NULL";
     $params[] = $classFilter;
 } elseif ($hasClassFilter && $classFilter === 0) {
-    $baseQuery .= " AND (s.class_id = 0 OR s.class_id IS NULL)";
+    $baseQuery .= " AND c.id IS NULL";
 }
 
-$orderClause = " ORDER BY CASE WHEN s.class_id IS NULL OR s.class_id = 0 THEN 1 ELSE 0 END, c.class_name, c.section, s.last_name, s.first_name";
+$orderClause = " ORDER BY s.last_name, s.first_name";
 
 try {
     // Get total count for pagination
-    $countStmt = $pdo->prepare("SELECT COUNT(*) " . $baseQuery);
+    $countStmt = $pdo->prepare("SELECT COUNT(DISTINCT s.id) " . $baseQuery);
     $countStmt->execute($params);
     $totalStudents = (int)$countStmt->fetchColumn();
     $totalPages = $totalStudents > 0 ? (int)ceil($totalStudents / $perPage) : 1;
@@ -77,8 +78,19 @@ try {
     // Note: Some MySQL/MariaDB configurations don't allow bound parameters for LIMIT/OFFSET.
     // Values are already sanitized (ints), so inject directly.
     $dataQuery = "
-        SELECT s.student_number, s.first_name, s.last_name, s.middle_initial, s.suffix, s.program, s.student_email, c.class_name, c.section, c.term, c.id as class_id, s.class_id as student_class_id
-        " . $baseQuery . $orderClause . " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        SELECT
+            s.student_number,
+            s.first_name,
+            s.last_name,
+            s.middle_initial,
+            s.suffix,
+            s.program,
+            s.student_email,
+            GROUP_CONCAT(DISTINCT CONCAT(c.class_name, ' - ', c.section, ' (', c.term, ')') ORDER BY c.class_name SEPARATOR ', ') as class_list,
+            COUNT(DISTINCT c.id) as class_count
+        " . $baseQuery . "
+        GROUP BY s.id
+        " . $orderClause . " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
     $stmt = $pdo->prepare($dataQuery);
     $stmt->execute($params);
     $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -112,7 +124,7 @@ try {
                 $fullName .= ' ' . htmlspecialchars($student['suffix']);
             }
             echo $fullName . '<br><span class="student-email">' . htmlspecialchars($student['student_email']) . '</span></td>
-                    <td>' . (($student['student_class_id'] == 0 || $student['student_class_id'] === null) ? '--' : htmlspecialchars($student['class_name']) . ' - ' . htmlspecialchars($student['section']) . ' (' . htmlspecialchars($student['term']) . ')') . '</td>
+                    <td>' . (empty($student['class_list']) ? '--' : htmlspecialchars($student['class_list'])) . '</td>
                     <td>' . htmlspecialchars($student['program']) . '</td>
                   </tr>';
         }

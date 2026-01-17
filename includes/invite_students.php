@@ -44,34 +44,21 @@ try {
     $successCount = 0;
     foreach ($studentIds as $studentId) {
         // Fetch student data
-        $stmt = $pdo->prepare("SELECT * FROM students WHERE id = ? AND teacher_email = ?");
-        $stmt->execute([$studentId, $_SESSION['email']]);
+        $stmt = $pdo->prepare("SELECT id FROM students WHERE id = ?");
+        $stmt->execute([$studentId]);
         $student = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$student) {
-            continue; // Skip if student not found or not owned by teacher
+            continue; // Skip if student not found
         }
 
-        if ($student['class_id'] === null || $student['class_id'] == 0) {
-            // Update existing record for unassigned students
-            $stmt = $pdo->prepare("UPDATE students SET class_id = ? WHERE id = ?");
-            $stmt->execute([$classId, $studentId]);
-            $successCount++;
-        } else {
-            // Insert new record for students already in a class
-            $fields = array_keys($student);
-            $fields = array_diff($fields, ['id']); // Exclude auto-increment id
-            $placeholders = str_repeat('?,', count($fields) - 1) . '?';
-            $stmt = $pdo->prepare("INSERT INTO students (" . implode(',', $fields) . ") VALUES ($placeholders)");
-            $values = [];
-            foreach ($fields as $field) {
-                if ($field == 'class_id') {
-                    $values[] = $classId;
-                } else {
-                    $values[] = $student[$field];
-                }
-            }
-            $stmt->execute($values);
+        // Enroll student in class if not already enrolled
+        $enrollStmt = $pdo->prepare("
+            INSERT IGNORE INTO student_classes (student_id, class_id)
+            VALUES (?, ?)
+        ");
+        $enrollStmt->execute([$studentId, $classId]);
+        if ($enrollStmt->rowCount() > 0) {
             $successCount++;
         }
     }

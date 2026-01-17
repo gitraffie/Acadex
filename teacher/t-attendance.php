@@ -709,10 +709,12 @@ try {
         }
 
         // Class selection functionality
-        function selectClass(className, classId) {
+        function selectClass(className, classId, section = '', term = '') {
             document.getElementById('selectedClassName').textContent = className;
             document.getElementById('selectedClassSection').style.display = 'block';
             document.getElementById('selectedClassSection').setAttribute('data-class-id', classId);
+            document.getElementById('selectedClassSection').setAttribute('data-section', section);
+            document.getElementById('selectedClassSection').setAttribute('data-term', term);
             // Hide classes grid
             document.getElementById('classesGrid').style.display = 'none';
             // Scroll to selected class section
@@ -897,6 +899,7 @@ try {
 
         let currentHistoryStudent = null;
         let currentHistoryRecords = [];
+        const teacherName = <?php echo json_encode($userFullName); ?>;
 
         function updateHistorySelectedState() {
             const selected = document.querySelectorAll('.history-checkbox:checked').length;
@@ -932,7 +935,7 @@ try {
             payload.append('student_name', currentHistoryStudent.name);
             payload.append('class_id', currentHistoryStudent.class_id || '');
             payload.append('records', JSON.stringify(records));
-            payload.append('teacher_name', '<?php echo htmlspecialchars($userFullName); ?>');
+            payload.append('teacher_name', teacherName);
 
             fetch('../includes/send_email.php', {
                 method: 'POST',
@@ -959,10 +962,16 @@ try {
             const header = document.getElementById('historyStudentHeader');
             const sendAllBtn = document.getElementById('sendAttendanceAll');
             const sendSelectedBtn = document.getElementById('sendAttendanceSelected');
+            const classId = document.getElementById('selectedClassSection')?.getAttribute('data-class-id');
             timeline.innerHTML = '<p>Loading...</p>';
             modal.style.display = 'block';
 
-            fetch('../includes/get_history.php?id=' + id)
+            if (!classId) {
+                timeline.innerHTML = '<p>No class selected.</p>';
+                return;
+            }
+
+            fetch(`../includes/get_history.php?id=${id}&class_id=${classId}`)
                 .then(res => res.json())
                 .then(data => {
                     if (!data.success) {
@@ -1127,7 +1136,9 @@ try {
                 card.addEventListener('click', function(e) {
                     const className = this.getAttribute('data-class-name');
                     const classId = this.getAttribute('data-class-id');
-                    selectClass(className, classId);
+                    const section = this.getAttribute('data-section') || '';
+                    const term = this.getAttribute('data-term') || '';
+                    selectClass(className, classId, section, term);
                 });
             });
 
@@ -1137,7 +1148,9 @@ try {
                 const requestedCard = document.querySelector(`.class-card[data-class-id="${requestedClassId}"]`);
                 if (requestedCard) {
                     const className = requestedCard.getAttribute('data-class-name');
-                    selectClass(className, requestedClassId);
+                    const section = requestedCard.getAttribute('data-section') || '';
+                    const term = requestedCard.getAttribute('data-term') || '';
+                    selectClass(className, requestedClassId, section, term);
                 }
             }
 
@@ -1252,6 +1265,8 @@ try {
         function printAttendance() {
             const className = document.getElementById('selectedClassName').textContent;
             const date = document.getElementById('attendanceDate').value;
+            const classSection = document.getElementById('selectedClassSection').dataset.section || '';
+            const classTerm = document.getElementById('selectedClassSection').dataset.term || '';
             const printWindow = window.open('', '_blank');
 
             printWindow.document.write(`
@@ -1264,7 +1279,7 @@ try {
 </head>
                 <body class="print-report">
                     <h1>Acadex Attendance Report</h1>
-                    <p><strong>Class:</strong> ${className} - <?php echo htmlspecialchars($class['section']); ?> - <?php echo htmlspecialchars($class['term']); ?></p>
+                    <p><strong>Class:</strong> ${className} - ${classSection} - ${classTerm}</p>
                     <p><strong>Date:</strong> ${date}</p>
                     <table>
                         <thead>

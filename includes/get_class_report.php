@@ -50,8 +50,8 @@ try {
     $stmt = $pdo->prepare("
         SELECT s.first_name, s.last_name, s.student_number, cg.prelim, cg.midterm, cg.finals, cg.final_grade
         FROM students s
-        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND cg.class_id = s.class_id
-        WHERE s.class_id = ?
+        JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = ?
+        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND cg.class_id = sc.class_id
         ORDER BY COALESCE(cg.final_grade, 0) DESC, s.last_name, s.first_name
     ");
     $stmt->execute([$class_id]);

@@ -69,6 +69,28 @@ try {
         )
     ");
 
+    // Create student_classes table for multi-class enrollment
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS student_classes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            student_id INT NOT NULL,
+            class_id INT NOT NULL,
+            enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_student_class (student_id, class_id),
+            FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+            FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+            INDEX idx_class (class_id),
+            INDEX idx_student (student_id)
+        )
+    ");
+
+    // Backfill enrollments for existing student class assignments
+    $pdo->exec("
+        INSERT IGNORE INTO student_classes (student_id, class_id)
+        SELECT id, class_id FROM students
+        WHERE class_id IS NOT NULL AND class_id <> 0
+    ");
+
     // Create email logs table
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS email_logs (

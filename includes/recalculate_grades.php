@@ -97,8 +97,10 @@ try {
 
         // Get student_id from students table
         $stmt = $pdo->prepare("
-            SELECT id FROM students 
-            WHERE student_number = ? AND class_id = ?
+            SELECT s.id
+            FROM students s
+            JOIN student_classes sc ON sc.student_id = s.id
+            WHERE s.student_number = ? AND sc.class_id = ?
             LIMIT 1
         ");
         $stmt->execute([$student_number, $class_id]);

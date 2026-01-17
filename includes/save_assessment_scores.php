@@ -64,7 +64,12 @@ try {
 
 // Verify that the student belongs to the same class
 try {
-    $stmt = $pdo->prepare("SELECT id, student_number FROM students WHERE id = ? AND class_id = ?");
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.student_number
+        FROM students s
+        JOIN student_classes sc ON sc.student_id = s.id
+        WHERE s.id = ? AND sc.class_id = ?
+    ");
     $stmt->execute([$student_id, $assessment['class_id']]);
     $student = $stmt->fetch();
 

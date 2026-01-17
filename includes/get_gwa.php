@@ -66,6 +66,7 @@ try {
             s.last_name
         FROM calculated_grades cg
         INNER JOIN students s ON cg.student_number = s.student_number
+        INNER JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = cg.class_id
         WHERE cg.class_id = ?
     ";
 

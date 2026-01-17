@@ -19,9 +19,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $selectedClassId = isset($_GET['class_id']) ? (int)$_GET['class_id'] : 0;
 
 try {
-    // Fetch students for the current teacher where class_id is NULL, 0, or not equal to the selected class_id
-    $stmt = $pdo->prepare("SELECT s.id, s.student_number, s.student_email, s.first_name, s.last_name, s.middle_initial, s.suffix, s.program, s.class_id, c.class_name FROM students s LEFT JOIN classes c ON s.class_id = c.id WHERE s.teacher_email = ? AND (s.class_id IS NULL OR s.class_id = 0 OR s.class_id != ?) ORDER BY s.last_name, s.first_name");
-    $stmt->execute([$_SESSION['email'], $selectedClassId]);
+    // Fetch students not yet enrolled in the selected class
+    $stmt = $pdo->prepare("
+        SELECT 
+            s.id,
+            s.student_number,
+            s.student_email,
+            s.first_name,
+            s.last_name,
+            s.middle_initial,
+            s.suffix,
+            s.program,
+            COUNT(sc.class_id) as class_count
+        FROM students s
+        LEFT JOIN student_classes sc ON sc.student_id = s.id
+        WHERE NOT EXISTS (
+            SELECT 1 FROM student_classes sc2
+            WHERE sc2.student_id = s.id AND sc2.class_id = ?
+        )
+        GROUP BY s.id
+        ORDER BY s.last_name, s.first_name
+    ");
+    $stmt->execute([$selectedClassId]);
     $rawStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Format students data with full_name
@@ -37,8 +56,7 @@ try {
             'middle_initial' => $student['middle_initial'],
             'suffix' => $student['suffix'],
             'program' => $student['program'],
-            'class_id' => $student['class_id'],
-            'class_name' => $student['class_name'],
+            'class_count' => (int)($student['class_count'] ?? 0),
             'full_name' => $fullName
         ];
     }

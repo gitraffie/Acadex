@@ -22,10 +22,10 @@ try {
     // Get class ID from form data
     $classIdRaw = $_POST['classId'] ?? null;
     if ($classIdRaw === null || $classIdRaw === '') {
-        echo json_encode(['success' => false, 'message' => 'Class ID is required']);
-        exit();
+        $classId = 0;
+    } else {
+        $classId = (int) $classIdRaw;
     }
-    $classId = (int) $classIdRaw;
 
     // Check if file was uploaded
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
@@ -144,28 +144,48 @@ try {
     $duplicates = 0;
 
     foreach ($students as $student) {
-        // Check for duplicates
+        // Find or create student
         $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ? LIMIT 1");
         $stmt->execute([$student['student_number']]);
-        if ($stmt->fetch()) {
-            $duplicates++;
-            continue;
+        $existingStudent = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingStudent) {
+            $studentId = (int)$existingStudent['id'];
+            if ($classId > 0) {
+                $stmt = $pdo->prepare("UPDATE students SET class_id = ? WHERE id = ?");
+                $stmt->execute([$classId, $studentId]);
+            }
+        } else {
+            $stmt = $pdo->prepare("
+                INSERT INTO students (class_id, student_number, student_email, first_name, last_name, middle_initial, suffix, program, created_at, teacher_email)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+            ");
+            $stmt->execute([
+                $classId,
+                $student['student_number'],
+                $student['student_email'],
+                $student['first_name'],
+                $student['last_name'],
+                $student['middle_initial'],
+                $student['suffix'],
+                $student['program'],
+                $teacherEmail
+            ]);
+            $studentId = (int)$pdo->lastInsertId();
         }
 
-        // Insert student
-        $stmt = $pdo->prepare("INSERT INTO students (class_id, student_number, student_email, first_name, last_name, middle_initial, suffix, program, created_at, teacher_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
-        $stmt->execute([
-            $classId,
-            $student['student_number'],
-            $student['student_email'],
-            $student['first_name'],
-            $student['last_name'],
-            $student['middle_initial'],
-            $student['suffix'],
-            $student['program'],
-            $teacherEmail
-        ]);
-        $inserted++;
+        // Enroll student in class
+        if ($classId > 0) {
+            $enrollStmt = $pdo->prepare("INSERT IGNORE INTO student_classes (student_id, class_id) VALUES (?, ?)");
+            $enrollStmt->execute([$studentId, $classId]);
+            if ($enrollStmt->rowCount() > 0) {
+                $inserted++;
+            } else {
+                $duplicates++;
+            }
+        } else {
+            $inserted++;
+        }
     }
 
     $pdo->commit();

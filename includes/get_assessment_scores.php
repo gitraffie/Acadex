@@ -50,11 +50,11 @@ try {
     $stmt = $pdo->prepare("
         SELECT s.id as student_id, s.student_number, s.first_name, s.last_name, ascore.score, ascore.date_modified
         FROM students s
+        JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = ?
         LEFT JOIN assessment_scores ascore ON s.id = ascore.student_id AND ascore.assessment_item_id = ?
-        WHERE s.class_id = ?
         ORDER BY s.last_name, s.first_name
     ");
-    $stmt->execute([$assessment_id, $assessment['class_id']]);
+    $stmt->execute([$assessment['class_id'], $assessment_id]);
     $scores = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([

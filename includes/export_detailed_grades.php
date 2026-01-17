@@ -54,9 +54,9 @@ try {
             cg.finals,
             cg.final_grade
         FROM students s
+        JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = ?
         LEFT JOIN grades g ON s.student_number = g.student_number AND g.class_id = ?
         LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND cg.class_id = ?
-        WHERE s.class_id = ?
         ORDER BY s.last_name, s.first_name, g.term
     ";
 

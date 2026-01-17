@@ -23,8 +23,14 @@ try {
         exit();
     }
 
-    // Fetch students for the class
-    $stmt = $pdo->prepare("SELECT id, student_number, student_email, first_name, last_name, middle_initial, suffix, program FROM students WHERE class_id = ? AND teacher_email  = ? ORDER BY last_name, first_name");
+    // Fetch students for the class via enrollments
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.student_number, s.student_email, s.first_name, s.last_name, s.middle_initial, s.suffix, s.program
+        FROM students s
+        INNER JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = ?
+        INNER JOIN classes c ON c.id = sc.class_id AND c.user_email = ?
+        ORDER BY s.last_name, s.first_name
+    ");
     $stmt->execute([$classId, $_SESSION['email']]);
     $rawStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

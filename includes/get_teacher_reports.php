@@ -58,16 +58,15 @@ try {
 
     // Get total students across all classes
     $placeholders = str_repeat('?,', count($class_ids) - 1) . '?';
-    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM students WHERE class_id IN ($placeholders)");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM student_classes WHERE class_id IN ($placeholders)");
     $stmt->execute($class_ids);
     $total_students = $stmt->fetch()['total'];
 
     // Get calculated grades for all students in teacher's classes
     $stmt = $pdo->prepare("
-        SELECT cg.final_grade, cg.prelim, cg.midterm, cg.finals, s.class_id
+        SELECT cg.final_grade, cg.prelim, cg.midterm, cg.finals, cg.class_id
         FROM calculated_grades cg
-        JOIN students s ON cg.student_number = s.student_number AND cg.class_id = s.class_id
-        WHERE s.class_id IN ($placeholders)
+        WHERE cg.class_id IN ($placeholders)
     ");
     $stmt->execute($class_ids);
     $grades = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -130,8 +129,7 @@ try {
         $stmt = $pdo->prepare("
             SELECT AVG(cg.final_grade) as avg_grade
             FROM calculated_grades cg
-            JOIN students s ON cg.student_number = s.student_number AND cg.class_id = s.class_id
-            WHERE s.class_id IN ($placeholders) AND cg.created_at BETWEEN ? AND ?
+            WHERE cg.class_id IN ($placeholders) AND cg.created_at BETWEEN ? AND ?
         ");
         $stmt->execute(array_merge($class_ids, [$month_start . ' 00:00:00', $month_end . ' 23:59:59']));
         $trend_data = $stmt->fetch();

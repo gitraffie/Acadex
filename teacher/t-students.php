@@ -560,6 +560,15 @@ include '../includes/teacher_requests.php';
             submitBtn.textContent = 'Adding...';
             console.log('Submit button disabled and text changed to "Adding..."');
 
+            Swal.fire({
+                title: 'Adding student...',
+                text: 'Please wait while we save the student.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             console.log('Sending fetch request to ../includes/add_student.php');
             fetch('../includes/add_student.php', {
                 method: 'POST',
@@ -571,6 +580,7 @@ include '../includes/teacher_requests.php';
             })
             .then(data => {
                 console.log('Parsed response data:', data);
+                Swal.close();
                 if (data.success) {
                     console.log('Student added successfully:', data.message);
                     Swal.fire({
@@ -608,6 +618,7 @@ include '../includes/teacher_requests.php';
             })
             .catch(error => {
                 console.error('Error in addStudent function:', error);
+                Swal.close();
                 Swal.fire('Error', 'An error occurred while adding the student', 'error');
             })
             .finally(() => {
@@ -639,6 +650,15 @@ include '../includes/teacher_requests.php';
             submitBtn.textContent = 'Importing...';
             console.log('Submit button disabled and text changed to "Importing..."');
 
+            Swal.fire({
+                title: 'Importing students...',
+                text: 'Please wait while we process the file.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             console.log('Sending fetch request to ../includes/import_students.php');
             fetch('../includes/import_students.php', {
                 method: 'POST',
@@ -650,6 +670,7 @@ include '../includes/teacher_requests.php';
             })
             .then(data => {
                 console.log('Parsed response data:', data);
+                Swal.close();
                 if (data.success) {
                     console.log('Students imported successfully:', data.message);
                     Swal.fire({
@@ -687,6 +708,7 @@ include '../includes/teacher_requests.php';
             })
             .catch(error => {
                 console.error('Error in importStudents function:', error);
+                Swal.close();
                 Swal.fire('Error', 'An error occurred while importing students', 'error');
             })
             .finally(() => {

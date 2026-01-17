@@ -25,6 +25,7 @@ try {
     $suffix = trim($_POST['suffix'] ?? '');
     $program = trim($_POST['program'] ?? '');
     $classId = $_POST['classId'] ?? null; // This should be passed from the frontend
+    $classId = ($classId !== null && $classId !== '' && $classId !== '0') ? (int)$classId : 0;
     $teacherEmail = $_SESSION['email'];
 
     // Validate required fields
@@ -33,22 +34,31 @@ try {
         exit();
     }
 
-    if (!$classId) {
-        echo json_encode(['success' => false, 'message' => 'Class ID is required']);
-        exit();
+    // Find or create student
+    $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ? LIMIT 1");
+    $stmt->execute([$studentNumber]);
+    $student = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$student) {
+        $stmt = $pdo->prepare("
+            INSERT INTO students (class_id, student_number, student_email, first_name, last_name, middle_initial, suffix, program, created_at, teacher_email)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+        ");
+        $stmt->execute([$classId, $studentNumber, $email, $firstName, $lastName, $middleInitial, $suffix, $program, $teacherEmail]);
+        $studentId = (int)$pdo->lastInsertId();
+    } else {
+        $studentId = (int)$student['id'];
+        if ($classId > 0) {
+            $stmt = $pdo->prepare("UPDATE students SET class_id = ? WHERE id = ?");
+            $stmt->execute([$classId, $studentId]);
+        }
     }
 
-    // Check if student number already exists in this class
-    $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ? AND class_id = ?");
-    $stmt->execute([$studentNumber, $classId]);
-    if ($stmt->fetch()) {
-        echo json_encode(['success' => false, 'message' => 'Student number already exists in this class']);
-        exit();
+    // Enroll student in class (avoid duplicates)
+    if ($classId > 0) {
+        $stmt = $pdo->prepare("INSERT IGNORE INTO student_classes (student_id, class_id) VALUES (?, ?)");
+        $stmt->execute([$studentId, $classId]);
     }
-
-    // Insert student
-    $stmt = $pdo->prepare("INSERT INTO students (class_id, student_number, student_email, first_name, last_name, middle_initial, suffix, program, created_at, teacher_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
-    $stmt->execute([$classId, $studentNumber, $email, $firstName, $lastName, $middleInitial, $suffix, $program, $teacherEmail]);
 
     echo json_encode(['success' => true, 'message' => 'Student registered successfully']);
 

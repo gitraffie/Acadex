@@ -19,25 +19,48 @@ $className = 'N/A';
 $section = 'N/A';
 $term = 'N/A';
 $teacherEmail = 'N/A';
+$enrolledClasses = [];
 
-// Fetch student complete information and class details
+// Fetch student complete information
 try {
     $stmt = $pdo->prepare("SELECT * FROM students WHERE id = ?");
     $stmt->execute([$studentId]);
     $student = $stmt->fetch();
-
+    
     if ($student) {
-        $classId = $student['class_id'] ?? null;
-        $teacherEmail = $student['teacher_email'] ?? 'N/A';
+        $classStmt = $pdo->prepare("
+            SELECT c.id, c.class_name, c.section, c.term, c.user_email
+            FROM student_classes sc
+            JOIN classes c ON c.id = sc.class_id
+            WHERE sc.student_id = ?
+            ORDER BY c.created_at DESC
+        ");
+        $classStmt->execute([$studentId]);
+        $enrolledClasses = $classStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $requestedClassId = isset($_GET['class_id']) ? (int)$_GET['class_id'] : 0;
+        if ($requestedClassId > 0) {
+            foreach ($enrolledClasses as $classRow) {
+                if ((int)$classRow['id'] === $requestedClassId) {
+                    $classId = $requestedClassId;
+                    break;
+                }
+            }
+        }
+
+        if ($classId === null && !empty($enrolledClasses)) {
+            $classId = (int)$enrolledClasses[0]['id'];
+        }
+
         if ($classId) {
-            $classStmt = $pdo->prepare("SELECT class_name, section, term, user_email FROM classes WHERE id = ?");
-            $classStmt->execute([$classId]);
-            $classRow = $classStmt->fetch();
-            if ($classRow) {
-                $className = $classRow['class_name'] ?? 'N/A';
-                $section = $classRow['section'] ?? 'N/A';
-                $term = $classRow['term'] ?? 'N/A';
-                $teacherEmail = $classRow['user_email'] ?? $teacherEmail;
+            foreach ($enrolledClasses as $classRow) {
+                if ((int)$classRow['id'] === (int)$classId) {
+                    $className = $classRow['class_name'] ?? 'N/A';
+                    $section = $classRow['section'] ?? 'N/A';
+                    $term = $classRow['term'] ?? 'N/A';
+                    $teacherEmail = $classRow['user_email'] ?? 'N/A';
+                    break;
+                }
             }
         }
     }
@@ -122,7 +145,7 @@ try {
     $attendanceRate = 0;
 }
 
-// Fetch latest calculated grades summary
+// Fetch latest calculated grades summary for selected class
 $grades = null;
 try {
     $stmt = $pdo->prepare("
@@ -134,11 +157,11 @@ try {
             remarks,
             created_at
         FROM calculated_grades 
-        WHERE student_number = ? 
+        WHERE student_number = ? AND class_id = ?
         ORDER BY created_at DESC 
         LIMIT 1
     ");
-    $stmt->execute([$studentNumber]);
+    $stmt->execute([$studentNumber, $classId]);
     $grades = $stmt->fetch();
 } catch (PDOException $e) {
     $grades = null;
@@ -169,7 +192,7 @@ try {
     $gradeEntries = [];
 }
 
-// Fetch student request records
+// Fetch student request records for selected class
 $requestRecords = [];
 try {
     $stmt = $pdo->prepare("
@@ -180,11 +203,11 @@ try {
             status,
             created_at
         FROM student_requests
-        WHERE student_id = ? OR student_number = ?
+        WHERE (student_id = ? OR student_number = ?) AND class_id = ?
         ORDER BY created_at DESC
         LIMIT 8
     ");
-    $stmt->execute([$studentId, $studentNumber]);
+    $stmt->execute([$studentId, $studentNumber, $classId]);
     $requestRecords = $stmt->fetchAll();
 } catch (PDOException $e) {
     $requestRecords = [];
@@ -261,8 +284,45 @@ try {
             </div>
         </div>
 
+        <?php if (!empty($classId)): ?>
+            <div class="breadcrumb">
+                <a href="s-dashboard.php" class="breadcrumb-link" id="showClassesLink">Classes</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current"><?php echo htmlspecialchars($className); ?></span>
+            </div>
+        <?php endif; ?>
+
+        <div class="classes-grid-wrapper<?php echo !empty($classId) ? ' is-hidden' : ''; ?>" id="studentClassesGrid">
+            <div class="classes-grid student-classes-grid">
+            <?php if (empty($enrolledClasses)): ?>
+                <div class="class-card">
+                    <div class="class-banner">
+                        <h3>No Classes Yet</h3>
+                        <p>Your class enrollments will appear here.</p>
+                    </div>
+                </div>
+            <?php else: ?>
+                <?php foreach ($enrolledClasses as $class): ?>
+                    <?php $isActive = (int)$classId === (int)$class['id']; ?>
+                    <a class="class-card<?php echo $isActive ? ' active' : ''; ?>" href="s-dashboard.php?class_id=<?php echo $class['id']; ?>">
+                        <div class="class-banner">
+                            <h3><?php echo htmlspecialchars($class['class_name']); ?></h3>
+                            <p><?php echo htmlspecialchars($class['section']); ?> • <?php echo htmlspecialchars($class['term']); ?></p>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </div>
+        </div>
+
+        <?php if (empty($classId)): ?>
+            <div class="no-data" style="margin-bottom: 2rem;">
+                <i class="fas fa-layer-group"></i>
+                <p>Select a class card to view your dashboard details.</p>
+            </div>
+        <?php else: ?>
         <!-- Main Dashboard Grid -->
-        <div class="dashboard-grid">
+        <div class="dashboard-grid" id="studentDashboardContent">
 
             <!-- Student Profile -->
             <div class="info-card student-profile">
@@ -424,9 +484,11 @@ try {
                         <i class="fas fa-paper-plane"></i>
                         Request Records
                     </h3>
-                    <button type="button" class="request-btn request-btn-inline" id="openRequestModal">New Request</button>
+                    <button type="button" class="request-btn request-btn-inline" id="openRequestModal" <?php echo empty($classId) ? 'disabled' : ''; ?>>New Request</button>
                 </div>
-                <p class="request-note">Send a request to your teacher for grades or attendance records.</p>
+                <p class="request-note">
+                    <?php echo empty($classId) ? 'Select a class to send a request.' : 'Send a request to your teacher for grades or attendance records.'; ?>
+                </p>
                 <?php if (!empty($requestRecords)): ?>
                     <div class="request-table-wrapper">
                         <table class="attendance-table request-table">
@@ -471,6 +533,7 @@ try {
                 <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 
     <div class="request-modal" id="requestModal" aria-hidden="true">
@@ -480,6 +543,7 @@ try {
                 <button class="request-modal-close" type="button" id="closeRequestModal" aria-label="Close request modal">&times;</button>
             </div>
             <form id="requestForm" class="request-form">
+                <input type="hidden" id="requestClassId" name="class_id" value="<?php echo htmlspecialchars((string)$classId); ?>">
                 <div class="request-row">
                     <label for="requestType">Request Type</label>
                     <select id="requestType" name="request_type" required>
@@ -612,6 +676,25 @@ try {
         }
 
         updateRequestTermVisibility();
+
+        const showClassesLink = document.getElementById('showClassesLink');
+        if (showClassesLink) {
+            showClassesLink.addEventListener('click', (event) => {
+                event.preventDefault();
+                const classesGrid = document.getElementById('studentClassesGrid');
+                const dashboardContent = document.getElementById('studentDashboardContent');
+                if (classesGrid) {
+                    classesGrid.classList.remove('is-hidden');
+                }
+                if (dashboardContent) {
+                    dashboardContent.style.display = 'none';
+                }
+                const breadcrumb = document.querySelector('.breadcrumb');
+                if (breadcrumb) {
+                    breadcrumb.style.display = 'none';
+                }
+            });
+        }
 
         // Auto-refresh every 5 minutes to get latest data
         setTimeout(() => {

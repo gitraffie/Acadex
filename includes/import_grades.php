@@ -240,7 +240,12 @@ function importSpecificTerm($pdo, $class_id, $term, $data, &$errors) {
 }
 
 function checkStudentExists($pdo, $class_id, $student_number) {
-    $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ? AND class_id = ?");
+    $stmt = $pdo->prepare("
+        SELECT s.id
+        FROM students s
+        JOIN student_classes sc ON sc.student_id = s.id
+        WHERE s.student_number = ? AND sc.class_id = ?
+    ");
     $stmt->execute([$student_number, $class_id]);
     return (bool) $stmt->fetch();
 }

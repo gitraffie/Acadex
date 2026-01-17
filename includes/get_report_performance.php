@@ -28,8 +28,8 @@ try {
             cg.finals,
             cg.final_grade
         FROM students s
-        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND cg.class_id = s.class_id
-        WHERE s.class_id = ?
+        JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = ?
+        LEFT JOIN calculated_grades cg ON s.student_number = cg.student_number AND cg.class_id = sc.class_id
         ORDER BY cg.final_grade DESC, s.last_name ASC, s.first_name ASC
     ");
     $stmt->execute([$class_id]);

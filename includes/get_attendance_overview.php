@@ -19,7 +19,7 @@ $classId = $_GET['class_id'];
 
 try {
     // Get total students in the class
-    $stmt = $pdo->prepare("SELECT COUNT(*) as total_students FROM students WHERE class_id = ?");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total_students FROM student_classes WHERE class_id = ?");
     $stmt->execute([$classId]);
     $totalStudents = $stmt->fetch(PDO::FETCH_ASSOC)['total_students'];
 

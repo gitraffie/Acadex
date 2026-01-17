@@ -24,11 +24,12 @@ if (empty($studentId) || empty($classId)) {
 }
 
 try {
-    // First, verify that the student belongs to the class and the class belongs to the teacher
+    // Verify enrollment and class ownership
     $stmt = $pdo->prepare("
-        SELECT s.id FROM students s
-        JOIN classes c ON s.class_id = c.id
-        WHERE s.id = ? AND s.class_id = ? AND c.user_email = ?
+        SELECT sc.id
+        FROM student_classes sc
+        JOIN classes c ON sc.class_id = c.id
+        WHERE sc.student_id = ? AND sc.class_id = ? AND c.user_email = ?
     ");
     $stmt->execute([$studentId, $classId, $_SESSION['email']]);
     $student = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -38,9 +39,9 @@ try {
         exit();
     }
 
-    // Remove the student from the class (set class_id to NULL)
-    $stmt = $pdo->prepare("UPDATE students SET class_id = NULL WHERE id = ?");
-    $stmt->execute([$studentId]);
+    // Remove the student from the class
+    $stmt = $pdo->prepare("DELETE FROM student_classes WHERE student_id = ? AND class_id = ?");
+    $stmt->execute([$studentId, $classId]);
 
     if ($stmt->rowCount() > 0) {
         echo json_encode([

@@ -293,6 +293,11 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
+        .class-card.is-empty {
+            cursor: default;
+            pointer-events: none;
+        }
+
         .class-header {
             display: flex;
             justify-content: space-between;

@@ -33,9 +33,9 @@ if (empty($student_id) || empty($class_id) || empty($student_number) || empty($e
 try {
     // First, verify that the student belongs to the class and the class belongs to the teacher
     $stmt = $pdo->prepare('
-        SELECT s.id FROM students s
-        JOIN classes c ON s.class_id = c.id
-        WHERE s.id = ? AND s.class_id = ? AND c.user_email = ?
+        SELECT sc.id FROM student_classes sc
+        JOIN classes c ON sc.class_id = c.id
+        WHERE sc.student_id = ? AND sc.class_id = ? AND c.user_email = ?
     ');
     $stmt->execute([$student_id, $class_id, $_SESSION['email']]);
     $student = $stmt->fetch(PDO::FETCH_ASSOC);

@@ -64,10 +64,11 @@ try {
             s.last_name
         FROM grades g
         INNER JOIN students s ON g.student_number = s.student_number
-        WHERE g.class_id = ? AND s.class_id = ?
+        INNER JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = g.class_id
+        WHERE g.class_id = ?
     ";
     
-    $params = [$class_id, $class_id];
+    $params = [$class_id];
 
     // Add student filter if provided
     if ($student_id) {

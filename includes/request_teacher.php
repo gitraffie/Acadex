@@ -39,6 +39,7 @@ if (!isset($_SESSION['student_id'])) {
 $studentId = (int)$_SESSION['student_id'];
 $requestType = $_POST['request_type'] ?? '';
 $term = $_POST['term'] ?? null;
+$classId = isset($_POST['class_id']) ? (int)$_POST['class_id'] : 0;
 $message = trim($_POST['message'] ?? '');
 
 if (!in_array($requestType, ['grade', 'attendance'], true)) {
@@ -52,7 +53,12 @@ if ($term !== null && $term !== '' && !in_array($term, ['prelim', 'midterm', 'fi
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id, class_id, student_number, student_email, first_name, last_name, teacher_email FROM students WHERE id = ?");
+    if ($classId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Class not selected']);
+        exit();
+    }
+
+    $stmt = $pdo->prepare("SELECT id, student_number, student_email, first_name, last_name FROM students WHERE id = ?");
     $stmt->execute([$studentId]);
     $student = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -61,26 +67,24 @@ try {
         exit();
     }
 
-    $classId = $student['class_id'] ?? null;
-    $teacherEmail = $student['teacher_email'] ?? null;
-    $className = null;
+    // Verify enrollment in the selected class and get teacher info
+    $classStmt = $pdo->prepare("
+        SELECT c.class_name, c.user_email
+        FROM student_classes sc
+        JOIN classes c ON c.id = sc.class_id
+        WHERE sc.student_id = ? AND sc.class_id = ?
+        LIMIT 1
+    ");
+    $classStmt->execute([$studentId, $classId]);
+    $classRow = $classStmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!empty($classId)) {
-        $classStmt = $pdo->prepare("SELECT class_name, user_email FROM classes WHERE id = ?");
-        $classStmt->execute([$classId]);
-        $classRow = $classStmt->fetch(PDO::FETCH_ASSOC);
-        if ($classRow) {
-            $className = $classRow['class_name'] ?? null;
-            if (!empty($classRow['user_email'])) {
-                $teacherEmail = $classRow['user_email'];
-            }
-        }
-    }
-
-    if (empty($teacherEmail)) {
-        echo json_encode(['success' => false, 'message' => 'Teacher not assigned']);
+    if (!$classRow || empty($classRow['user_email'])) {
+        echo json_encode(['success' => false, 'message' => 'Student not enrolled in the selected class']);
         exit();
     }
+
+    $className = $classRow['class_name'] ?? null;
+    $teacherEmail = $classRow['user_email'];
 
     $studentName = trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? ''));
     if ($studentName === '') {

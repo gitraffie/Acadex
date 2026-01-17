@@ -14,7 +14,12 @@ $userEmail = $_SESSION['email'] ?? 'Unknown Email';
 
 // Fetch total number of students across all classes for the current teacher
 try {
-    $stmt = $pdo->prepare("SELECT COUNT(*) as total_students FROM students WHERE teacher_email = ?");
+    $stmt = $pdo->prepare("
+        SELECT COUNT(DISTINCT sc.student_id) as total_students
+        FROM student_classes sc
+        JOIN classes c ON c.id = sc.class_id
+        WHERE c.user_email = ?
+    ");
     $stmt->execute([$userEmail]);
     $result = $stmt->fetch();
     $totalStudents = $result['total_students'] ?? 0;
@@ -85,7 +90,8 @@ try {
                 g.updated_at AS activity_time
             FROM grades g
             JOIN classes c ON c.id = g.class_id
-            LEFT JOIN students s ON s.student_number = g.student_number AND s.class_id = g.class_id
+            LEFT JOIN student_classes sc ON sc.class_id = g.class_id
+            LEFT JOIN students s ON s.student_number = g.student_number AND s.id = sc.student_id
             WHERE g.teacher_email = ?
 
             UNION ALL
@@ -345,7 +351,7 @@ try {
                             // Get student count for this class
                             $studentCount = 0;
                             try {
-                                $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM students WHERE class_id = ?");
+                                $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM student_classes WHERE class_id = ?");
                                 $stmt->execute([$class['id']]);
                                 $result = $stmt->fetch();
                                 $studentCount = $result['count'] ?? 0;

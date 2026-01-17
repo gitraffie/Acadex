@@ -51,10 +51,11 @@ try {
 
     // Fetch students alphabetically (last_name ASC, first_name ASC)
     $stmt = $pdo->prepare("
-        SELECT id, student_number, first_name, last_name, middle_initial, suffix
-        FROM students
-        WHERE class_id = ? AND teacher_email = ?
-        ORDER BY last_name ASC, first_name ASC
+        SELECT s.id, s.student_number, s.first_name, s.last_name, s.middle_initial, s.suffix
+        FROM students s
+        JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = ?
+        JOIN classes c ON c.id = sc.class_id AND c.user_email = ?
+        ORDER BY s.last_name ASC, s.first_name ASC
     ");
     $stmt->execute([$classId, $userEmail]);
     $students = $stmt->fetchAll(PDO::FETCH_ASSOC);

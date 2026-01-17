@@ -182,7 +182,7 @@ try {
         <!-- Classes Grid -->
         <div class="classes-grid">
             <?php if (empty($classes)): ?>
-                <div class="class-card">
+                <div class="class-card is-empty">
                     <div class="class-banner">
                         <h3>No Classes Found</h3>
                         <p>You haven't added any classes yet.</p>
@@ -1308,6 +1308,9 @@ try {
             const classCards = document.querySelectorAll('.class-card');
             classCards.forEach(card => {
                 card.addEventListener('click', function(e) {
+                    if (this.classList.contains('is-empty')) {
+                        return;
+                    }
                     // Prevent navigation if clicking on the link
                     if (e.target.closest('a')) return;
 
@@ -1698,8 +1701,8 @@ try {
                         if (data.students.length > 0) {
                             listContainer.innerHTML = '';
                             data.students.forEach(student => {
-                                const hasClass = student.class_id !== null && student.class_id !== 0 && student.class_name;
-                                const classLabel = hasClass ? student.class_name : 'Not in a class yet.';
+                                const classCount = Number.isFinite(student.class_count) ? student.class_count : 0;
+                                const classLabel = classCount > 0 ? `${classCount} class${classCount > 1 ? 'es' : ''}` : 'Not in a class yet.';
                                 const studentItem = document.createElement('div');
                                 studentItem.className = 'student-item';
                                 studentItem.style.cssText = 'display: flex; align-items: center; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 0.5rem; background: #f9f9f9;';

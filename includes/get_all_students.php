@@ -16,9 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    // Fetch all students for the current teacher
-    $stmt = $pdo->prepare("SELECT id, class_id, student_number, student_email, first_name, last_name, middle_initial, suffix, program, created_at FROM students WHERE teacher_email = ? ORDER BY last_name, first_name");
-    $stmt->execute([$_SESSION['email']]);
+    // Fetch all students with enrollment counts
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.student_number, s.student_email, s.first_name, s.last_name, s.middle_initial, s.suffix, s.program, s.created_at,
+               COUNT(sc.class_id) as class_count
+        FROM students s
+        LEFT JOIN student_classes sc ON sc.student_id = s.id
+        GROUP BY s.id
+        ORDER BY s.last_name, s.first_name
+    ");
+    $stmt->execute();
     $rawStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Format students data with full_name
@@ -27,7 +34,7 @@ try {
         $fullName = trim($student['first_name'] . ' ' . ($student['middle_initial'] ? $student['middle_initial'] . ' ' : '') . $student['last_name'] . ($student['suffix'] ? ' ' . $student['suffix'] : ''));
         $students[] = [
             'id' => $student['id'],
-            'class_id' => $student['class_id'],
+            'class_count' => (int)($student['class_count'] ?? 0),
             'student_number' => $student['student_number'],
             'student_email' => $student['student_email'],
             'first_name' => $student['first_name'],

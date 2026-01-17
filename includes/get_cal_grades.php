@@ -67,7 +67,8 @@ try {
     $countQuery = "
         SELECT COUNT(*) as total
         FROM calculated_grades cg
-        INNER JOIN students s ON cg.student_number = s.student_number AND cg.class_id = s.class_id
+        INNER JOIN students s ON cg.student_number = s.student_number
+        INNER JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = cg.class_id
         WHERE cg.class_id = ?
     ";
 
@@ -97,7 +98,8 @@ try {
             s.first_name,
             s.last_name
         FROM calculated_grades cg
-        INNER JOIN students s ON cg.student_number = s.student_number AND cg.class_id = s.class_id
+        INNER JOIN students s ON cg.student_number = s.student_number
+        INNER JOIN student_classes sc ON sc.student_id = s.id AND sc.class_id = cg.class_id
         WHERE cg.class_id = ?
     ";
 
