@@ -255,6 +255,12 @@ try {
                 </div>
             </div>
             <div class="top-actions">
+                    <button type="button" class="request-btn request-btn-inline" id="openRequestModal" <?php echo empty($classId) ? 'disabled' : ''; ?>>
+                        <svg class="request-btn-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        New Request
+                    </button>
                 <button class="logout-btn" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
