@@ -17,53 +17,58 @@
             margin: 0 auto;
         }
 
-        /* Header */
-        .header {
+        /* Top Bar */
+        .top-bar {
             background: white;
-            padding: 2rem;
+            padding: 1rem;
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            margin-bottom: 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 2rem;
         }
 
-        .logo-section {
+        .page-title h1 {
+            font-size: 1.4rem;
+            color: #333;
+            margin-bottom: 0.3rem;
+        }
+
+        .page-title p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .top-actions {
             display: flex;
-            align-items: center;
             gap: 1rem;
-        }
-
-        .logo {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #667eea;
+            align-items: center;
         }
 
         .student-info-header {
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            gap: 1rem;
         }
 
         .student-avatar {
-            width: 60px;
-            height: 60px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             background: #667eea;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.5rem;
+            font-size: 1.1rem;
             font-weight: bold;
         }
 
         .student-details h2 {
             color: #333;
-            font-size: 1.5rem;
-            margin-bottom: 0.3rem;
+            font-size: 1rem;
+            margin-bottom: 0.2rem;
         }
 
         .student-details p {
@@ -72,21 +77,140 @@
         }
 
         .logout-btn {
-            padding: 0.8rem 1.5rem;
-            background: #667eea;
+            padding: 0.7rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 0.9rem;
             transition: all 0.3s ease;
         }
 
         .logout-btn:hover {
-            background: #5a67d8;
             transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
+
+        /* Banner */
+        .banner {
+            --banner-ink: #5771e9;
+            --banner-soft: rgba(255, 255, 255, 0.9);
+            --banner-accent: #f97316;
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+            gap: 1.5rem;
+            padding: 1.75rem 2rem;
+            border-radius: 18px;
+            background:
+                radial-gradient(600px 180px at 10% 10%, rgba(255, 255, 255, 0.5), transparent 60%),
+                radial-gradient(400px 220px at 90% 20%, rgba(102, 126, 234, 0.25), transparent 65%),
+                linear-gradient(135deg, #ffffff 0%, #f7f6ff 48%, #fff1e6 100%);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .banner::before {
+            content: "";
+            position: absolute;
+            inset: auto 0 -60px 0;
+            height: 120px;
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.5), rgba(102, 126, 234, 0.18));
+            transform: skewY(-4deg);
+        }
+
+        .banner::after {
+            content: "";
+            position: absolute;
+            top: -80px;
+            right: -60px;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(102, 126, 234, 0.5), transparent 70%);
+        }
+
+        .banner-content {
+            position: relative;
+            z-index: 30;
+        }
+
+        .banner-content {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 2fr));
+            align-items: center;
+            column-gap: 12rem;
+            width: 100%;
+        }
+
+        .banner-text h2 {
+            margin-bottom: 0.6rem;
+        }
+
+        .banner-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--banner-ink);
+            background: rgba(102, 126, 234, 0.14);
+            border: 1px solid rgba(102, 126, 234, 0.25);
+            margin-bottom: 0.75rem;
+        }
+
+        .banner h2 {
+            font-size: 1.75rem;
+            color: var(--banner-ink);
+            margin: 0 0 0.5rem;
+        }
+
+        .banner p {
+            margin: 0;
+            font-size: 1rem;
+            color: rgba(15, 23, 42, 0.75);
+        }
+
+        .banner-art {
+            display: flex;
+            justify-content: center;
+            justify-self: center;
+        }
+
+        .banner-illustration {
+            width: min(320px, 100%);
+            filter: drop-shadow(0 12px 20px rgba(15, 23, 42, 0.12));
+        }
+
+        .banner-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.6rem 0.9rem;
+            background: transparent;
+            justify-self: center;
+            margin-left: 12rem;
+        }
+
+        .banner-brand img {
+            width: 10rem;
+            height: 10rem;
+            object-fit: contain;
+        }
+
+        .banner-brand h3 {
+            margin: 0;
+            font-size: 2.3rem;
+            color: #6b55bb;
+        }
+
 
         /* Main Grid */
         .dashboard-grid {
@@ -112,7 +236,10 @@
 }
 
 .request-section {
-    grid-column: span 4;
+    grid-column: span 12;
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
 }
 
 .grades-section {
@@ -148,6 +275,19 @@
     color: #6b7280;
     font-size: 0.9rem;
     margin-bottom: 1rem;
+}
+
+.request-table-wrapper {
+    flex: 1;
+    min-height: 220px;
+    max-height: 360px;
+    overflow: auto;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+}
+
+.request-section .no-data {
+    margin-top: auto;
 }
 
 .request-form {
@@ -378,6 +518,20 @@
             background: #f8f9fa;
         }
 
+        .attendance-table-wrapper {
+            min-height: 220px;
+            max-height: 360px;
+            overflow: auto;
+            border: 1px solid #f0f0f0;
+            border-radius: 12px;
+        }
+
+        .request-table th,
+        .request-table td {
+            padding: 0.7rem;
+            font-size: 0.85rem;
+        }
+
         .status-badge {
             padding: 0.4rem 1rem;
             border-radius: 20px;
@@ -409,6 +563,16 @@
         .status-unexcused {
             background: rgba(245, 101, 101, 0.2);
             color: #c53030;
+        }
+
+        .status-pending {
+            background: rgba(251, 191, 36, 0.2);
+            color: #b45309;
+        }
+
+        .status-resolved {
+            background: rgba(16, 185, 129, 0.2);
+            color: #047857;
         }
 
         /* Grades Section */
@@ -512,11 +676,15 @@
                 padding: 1rem;
             }
 
-            .header {
+            .top-bar {
                 flex-direction: column;
-                gap: 1.5rem;
+                gap: 1rem;
                 text-align: center;
                 padding: 1.5rem;
+            }
+
+            .top-actions {
+                flex-direction: column;
             }
 
             .student-info-header {
@@ -539,6 +707,34 @@
             .attendance-table th,
             .attendance-table td {
                 padding: 0.7rem;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .banner {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .banner {
+                padding: 1.5rem;
+            }
+
+            .banner-content {
+                grid-template-columns: 1fr;
+            }
+
+            .banner-art {
+                justify-content: flex-start;
+            }
+
+            .banner-brand {
+                justify-self: start;
+            }
+
+            .banner-illustration {
+                width: min(200px, 100%);
             }
         }
 

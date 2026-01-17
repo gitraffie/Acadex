@@ -316,8 +316,8 @@ try {
                     <div class="table-header">
                         <div class="table-title"><i class="fas fa-users"></i> Student Attendance (<span id="totalStudents">0</span>)</div>
                         <div class="table-actions">
-                            <button class="btn btn-secondary btn-icon" onclick="selectAll()" title="Select All"><i class="fas fa-check-double"></i></button>
-                            <button class="btn btn-secondary btn-icon" onclick="refreshTable()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+                            <button class="btn btn-secondary btn-icon" onclick="selectAll()" data-tooltip="Select All" aria-label="Select All"><i class="fas fa-check-double"></i></button>
+                            <button class="btn btn-secondary btn-icon" onclick="refreshTable()" data-tooltip="Refresh" aria-label="Refresh"><i class="fas fa-sync-alt"></i></button>
                         </div>
                     </div>
                     <table class="attendance-table">
@@ -916,6 +916,15 @@ try {
                 alert('No attendance records selected.');
                 return;
             }
+            closeHistoryModal();
+            Swal.fire({
+                title: 'Sending attendance...',
+                text: 'Please wait while we email the attendance records.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
             const payload = new FormData();
             payload.append('action', 'email_attendance_history');
             payload.append('student_id', currentHistoryStudent.id);
@@ -931,6 +940,7 @@ try {
             })
                 .then(res => res.json())
                 .then(data => {
+                    Swal.close();
                     if (data.success) {
                         alert('Attendance record emailed successfully.');
                     } else {
@@ -938,6 +948,7 @@ try {
                     }
                 })
                 .catch(() => {
+                    Swal.close();
                     alert('An error occurred while sending the email.');
                 });
         }
@@ -1075,6 +1086,15 @@ try {
                 attendance.push({ student_id: studentId, status, date, session, class_id: classId });
             });
 
+            Swal.fire({
+                title: 'Saving attendance...',
+                text: 'Please wait while we save and email attendance.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             fetch('../includes/save_attendance.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1082,10 +1102,21 @@ try {
             })
             .then(res => res.json())
             .then(data => {
+                Swal.close();
+                if (!data.success) {
+                    alert('Error saving attendance: ' + (data.message || 'Unknown error'));
+                    return;
+                }
                 document.getElementById('successToast').classList.add('active');
                 setTimeout(() => document.getElementById('successToast').classList.remove('active'), 3000);
                 // Clear unsaved changes after successful save
                 clearUnsavedChanges();
+                // Refresh attendance data after save
+                loadAttendance();
+            })
+            .catch(() => {
+                Swal.close();
+                alert('An error occurred while saving attendance.');
             });
         }
 

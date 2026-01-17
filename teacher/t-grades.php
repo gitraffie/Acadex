@@ -1894,14 +1894,25 @@ try {
         }
 
         async function emailToStudent(studentId) {
+            closeGwaSummaryModal();
             const confirmed = await confirmAction('Are you sure you want to email the grade report to this student?', { confirmText: 'Email' });
             if (!confirmed) {
                 return;
             }
 
+            Swal.fire({
+                title: 'Sending email...',
+                text: 'Please wait while we send the grade report.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             // Find the student details
             const student = currentStudents.find(s => s.id == studentId);
             if (!student) {
+                Swal.close();
                 alert('Student not found.');
                 return;
             }
@@ -1925,12 +1936,15 @@ try {
                 const result = await response.json();
 
                 if (result.success) {
+                    Swal.close();
                     alert('Grade report emailed successfully to the student.');
                 } else {
+                    Swal.close();
                     alert('Failed to send email: ' + result.message);
                 }
             } catch (error) {
                 console.error('Error sending email:', error);
+                Swal.close();
                 alert('An error occurred while sending the email.');
             }
         }
@@ -2143,6 +2157,14 @@ try {
             }
 
             try {
+                Swal.fire({
+                    title: 'Sending grade...',
+                    text: 'Please wait while we email the grade.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
                 const action = !component ? 'email_student_term_grades' : 'email_student_component_grade';
                 const params = {
                     'action': action,
@@ -2176,12 +2198,15 @@ try {
                 const result = await response.json();
 
                 if (result.success) {
+                    Swal.close();
                     alert('Grade emailed successfully to the student.');
                 } else {
+                    Swal.close();
                     alert('Failed to send email: ' + result.message);
                 }
             } catch (error) {
                 console.error('Error sending email:', error);
+                Swal.close();
                 alert('An error occurred while sending the email.');
             }
         }

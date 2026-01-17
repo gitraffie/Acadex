@@ -25,7 +25,7 @@ try {
     $stmt = $pdo->prepare("SELECT * FROM students WHERE id = ?");
     $stmt->execute([$studentId]);
     $student = $stmt->fetch();
-    
+
     if ($student) {
         $classId = $student['class_id'] ?? null;
         $teacherEmail = $student['teacher_email'] ?? 'N/A';
@@ -103,7 +103,7 @@ try {
         $stmt->execute([$studentId, $studentNumber]);
         $attendanceStats = $stmt->fetch();
     }
-    
+
     $totalDays = $attendanceStats['total_days'] ?? 0;
     $presentDays = $attendanceStats['present_days'] ?? 0;
     $absentDays = $attendanceStats['absent_days'] ?? 0;
@@ -169,6 +169,27 @@ try {
     $gradeEntries = [];
 }
 
+// Fetch student request records
+$requestRecords = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT 
+            request_type,
+            term,
+            class_name,
+            status,
+            created_at
+        FROM student_requests
+        WHERE student_id = ? OR student_number = ?
+        ORDER BY created_at DESC
+        LIMIT 8
+    ");
+    $stmt->execute([$studentId, $studentNumber]);
+    $requestRecords = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $requestRecords = [];
+}
+
 // Fetch teacher information
 try {
     $stmt = $pdo->prepare("SELECT first_name, last_name, full_name, email FROM users WHERE email = ? AND user_type = 'teacher'");
@@ -188,40 +209,61 @@ try {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard - Acadex</title>
-    <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp"/>
+    <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
+
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../css/student/s-dashboard.css">
 </head>
+
 <body>
     <div class="container">
         <!-- Header -->
-        <div class="header">
-            <div class="logo-section">
-                <div class="logo">Acadex</div>
-            </div>
+        <div class="top-bar student-top-bar">
             <div class="student-info-header">
                 <div class="student-avatar">
                     <?php echo strtoupper(substr($studentName, 0, 1)); ?>
                 </div>
                 <div class="student-details">
                     <h2><?php echo htmlspecialchars($studentName); ?></h2>
-                    <p><?php echo htmlspecialchars($studentNumber); ?> • <?php echo htmlspecialchars($className); ?></p>
+                    <p><?php echo htmlspecialchars($studentEmail); ?></p>
                 </div>
             </div>
-            <button class="logout-btn" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
+            <div class="top-actions">
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <div class="banner student-banner">
+            <div class="banner-content">
+                <div class="banner-text">
+                    <span class="banner-tag">Student Dashboard</span>
+                    <h2>Welcome back, <br>
+                        <?php echo htmlspecialchars($studentName); ?>
+                    </h2>
+                    <p>Track your attendance, grades, and class activity at a glance.</p>
+                </div>
+                <div class="banner-art">
+                    <img class="banner-illustration" src="../image/undraw_educator_6dgp.svg" alt="Educator illustration">
+                </div>
+            </div>
+            <div class="banner-brand">
+                <img src="../image/Acadex-logo.webp" alt="Acadex Logo">
+                <h3>Acadex</h3>
+            </div>
         </div>
 
         <!-- Main Dashboard Grid -->
         <div class="dashboard-grid">
+
             <!-- Student Profile -->
             <div class="info-card student-profile">
                 <div class="card-title-row">
@@ -229,7 +271,6 @@ try {
                         <i class="fas fa-user-circle"></i>
                         Student Profile
                     </h3>
-                    <button type="button" class="request-btn request-btn-inline" id="openRequestModal">New Request</button>
                 </div>
                 <div class="profile-info">
                     <div class="info-row">
@@ -269,7 +310,7 @@ try {
                     <i class="fas fa-calendar-check"></i>
                     Attendance Overview
                 </h3>
-                
+
                 <div class="attendance-stats">
                     <div class="stat-box">
                         <div class="stat-value"><?php echo $attendanceRate; ?>%</div>
@@ -299,43 +340,36 @@ try {
 
                 <h4 style="color: #333; margin-bottom: 1rem;">Recent Attendance Records</h4>
                 <?php if (!empty($attendanceRecords)): ?>
-                    <table class="attendance-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Session</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($attendanceRecords as $record): ?>
+                    <div class="attendance-table-wrapper">
+                        <table class="attendance-table">
+                            <thead>
                                 <tr>
-                                    <td><?php echo date('F j, Y', strtotime($record['attendance_date'])); ?></td>
-                                    <td><?php echo isset($record['session']) && $record['session'] !== '' ? htmlspecialchars(ucfirst($record['session'])) : '-'; ?></td>
-                                    <td>
-                                        <span class="status-badge status-<?php echo strtolower($record['status']); ?>">
-                                            <?php echo ucfirst($record['status']); ?>
-                                        </span>
-                                    </td>
+                                    <th>Date</th>
+                                    <th>Session</th>
+                                    <th>Status</th>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($attendanceRecords as $record): ?>
+                                    <tr>
+                                        <td><?php echo date('F j, Y', strtotime($record['attendance_date'])); ?></td>
+                                        <td><?php echo isset($record['session']) && $record['session'] !== '' ? htmlspecialchars(ucfirst($record['session'])) : '-'; ?></td>
+                                        <td>
+                                            <span class="status-badge status-<?php echo strtolower($record['status']); ?>">
+                                                <?php echo ucfirst($record['status']); ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 <?php else: ?>
                     <div class="no-data">
                         <i class="fas fa-calendar-times"></i>
                         <p>No attendance records found</p>
                     </div>
                 <?php endif; ?>
-            </div>
-
-            <!-- Request Section -->
-            <div class="info-card request-section">
-                <h3 class="card-title">
-                    <i class="fas fa-paper-plane"></i>
-                    Request Records
-                </h3>
-                <p class="request-note">Send a request to your teacher for grades or attendance records.</p>
             </div>
 
             <!-- Detailed Grades Table -->
@@ -383,45 +417,56 @@ try {
                 <?php endif; ?>
             </div>
 
-            <!-- Grades Section -->
-            <div class="info-card grades-section">
-                <h3 class="card-title">
-                    <i class="fas fa-graduation-cap"></i>
-                    Academic Performance
-                </h3>
-                
-                <?php if ($grades): ?>
-                    <div class="grades-grid">
-                        <div class="grade-card">
-                            <div class="grade-label">Written Work</div>
-                            <div class="grade-value"><?php echo number_format($grades['written_work'], 2); ?></div>
-                            <div class="grade-percentage">30% Weight</div>
-                        </div>
-                        <div class="grade-card">
-                            <div class="grade-label">Performance Task</div>
-                            <div class="grade-value"><?php echo number_format($grades['performance_task'], 2); ?></div>
-                            <div class="grade-percentage">50% Weight</div>
-                        </div>
-                        <div class="grade-card">
-                            <div class="grade-label">Quarterly Assessment</div>
-                            <div class="grade-value"><?php echo number_format($grades['quarterly_assessment'], 2); ?></div>
-                            <div class="grade-percentage">20% Weight</div>
-                        </div>
-                        <div class="grade-card final-grade-highlight">
-                            <div class="grade-label">Final Grade</div>
-                            <div class="grade-value"><?php echo number_format($grades['final_grade'], 2); ?></div>
-                            <div class="grade-percentage">Overall</div>
-                        </div>
-                    </div>
-
-                    <div class="remarks-box">
-                        <h4>Teacher's Remarks</h4>
-                        <p><?php echo htmlspecialchars($grades['remarks'] ?: 'No remarks yet'); ?></p>
+            <!-- Request Section -->
+            <div class="info-card request-section">
+                <div class="card-title-row">
+                    <h3 class="card-title">
+                        <i class="fas fa-paper-plane"></i>
+                        Request Records
+                    </h3>
+                    <button type="button" class="request-btn request-btn-inline" id="openRequestModal">New Request</button>
+                </div>
+                <p class="request-note">Send a request to your teacher for grades or attendance records.</p>
+                <?php if (!empty($requestRecords)): ?>
+                    <div class="request-table-wrapper">
+                        <table class="attendance-table request-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Term</th>
+                                    <th>Status</th>
+                                    <th>Requested</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($requestRecords as $record): ?>
+                                    <?php
+                                    $requestType = $record['request_type'] ?? 'grade';
+                                    $term = $record['term'] ?? '';
+                                    $status = strtolower($record['status'] ?? 'pending');
+                                    $typeLabel = $requestType === 'attendance' ? 'Attendance' : 'Grades';
+                                    $termLabel = $requestType === 'grade'
+                                        ? ($term !== '' ? ucfirst($term) : 'All')
+                                        : '-';
+                                    ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($typeLabel); ?></td>
+                                        <td><?php echo htmlspecialchars($termLabel); ?></td>
+                                        <td>
+                                            <span class="status-badge status-<?php echo htmlspecialchars($status); ?>">
+                                                <?php echo ucfirst($status); ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo !empty($record['created_at']) ? date('M d, Y', strtotime($record['created_at'])) : '-'; ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 <?php else: ?>
                     <div class="no-data">
-                        <i class="fas fa-clipboard"></i>
-                        <p>No grades have been recorded yet</p>
+                        <i class="fas fa-inbox"></i>
+                        <p>No requests yet</p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -467,7 +512,11 @@ try {
 
     <script>
         function showAlert(message, icon = 'info', title = '') {
-            return Swal.fire({ icon, title, text: message });
+            return Swal.fire({
+                icon,
+                title,
+                text: message
+            });
         }
 
         window.alert = (message) => showAlert(message);
@@ -484,7 +533,9 @@ try {
         }
 
         function logout() {
-            confirmAction('Are you sure you want to logout?', { confirmText: 'Logout' })
+            confirmAction('Are you sure you want to logout?', {
+                    confirmText: 'Logout'
+                })
                 .then((confirmed) => {
                     if (confirmed) {
                         window.location.href = '../auth/student-login.php';
@@ -568,4 +619,5 @@ try {
         }, 300000);
     </script>
 </body>
+
 </html>
