@@ -117,7 +117,9 @@ try {
                 <div class="notification-wrapper">
                     <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge"><?php echo $requestCount; ?></span>
+                        <?php if (!empty($requestCount)): ?>
+                            <span class="notification-badge"><?php echo $requestCount; ?></span>
+                        <?php endif; ?>
                     </button>
                     <div class="notification-menu" id="notificationMenu" aria-hidden="true">
                         <div class="notification-header">
@@ -223,11 +225,9 @@ try {
             </div>
             <div class="classes-grid" id="archiveClassesGrid">
                 <!-- Archived classes will be loaded here -->
-                <div class="class-card">
-                    <div class="class-banner">
-                        <h3>No Archived Classes</h3>
-                        <p>No classes have been archived yet.</p>
-                    </div>
+                <div class="no-students">
+                    <p>No archived classes yet.</p>
+                    <p>Archived classes will appear here. You can restore them anytime.</p>
                 </div>
             </div>
         </div>
@@ -1566,7 +1566,7 @@ try {
         function loadArchivedClasses() {
             const archiveGrid = document.getElementById('archiveClassesGrid');
             const archiveBanner = document.getElementsByClassName('class-banner');
-            archiveGrid.innerHTML = '<div class="class-card"><div class="class-banner"><h3>Loading...</h3><p>Please wait.</p></div></div>';
+            archiveGrid.innerHTML = '<div class="no-students"><p>Loading archived classes...</p></div>';
 
             fetch('../includes/get_archived_classes.php')
                 .then(response => response.json())
@@ -1606,15 +1606,15 @@ try {
                                 archiveGrid.appendChild(classCard);
                             });
                         } else {
-                            archiveGrid.innerHTML = '<div class="class-card"><div class="class-banner"><h3>No Archived Classes</h3><p>No classes have been archived yet.</p></div></div>';
+                            archiveGrid.innerHTML = '<div class="no-students"><h3>No archived classes yet.</h3> <br> <p>Archived classes will appear here. You can restore them anytime.</p></div>';
                         }
                     } else {
-                        archiveGrid.innerHTML = '<div class="class-card"><div class="class-banner"><h3>Error</h3><p>Failed to load archived classes.</p></div></div>';
+                        archiveGrid.innerHTML = '<div class="no-students"><p>Failed to load archived classes.</p></div>';
                     }
                 })
                 .catch(error => {
                     console.error('Error loading archived classes:', error);
-                    archiveGrid.innerHTML = '<div class="class-card"><div class="class-banner"><h3>Error</h3><p>An error occurred while loading archived classes.</p></div></div>';
+                    archiveGrid.innerHTML = '<div class="no-students"><p>An error occurred while loading archived classes.</p></div>';
                 });
         }
 
@@ -1813,3 +1813,14 @@ try {
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+

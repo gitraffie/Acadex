@@ -25,8 +25,7 @@
             <h1 id="typing-text"></h1>
             <p>Streamline student grading, attendance tracking, and real-time notifications with our intelligent system. Save time, improve accuracy, and enhance transparency.</p>
             <div class="hero-buttons">
-                <button class="primary-btn" href="auth/student-login.php">Get Started</button>
-                <button class="secondary-btn">Watch Demo</button>
+                <a class="primary-btn" href="auth/student-login.php" style="text-decoration: none">Get Started</a>
             </div>
         </div>
         <div class="hero-image">
@@ -43,7 +42,7 @@
                     <rect x="20" y="230" width="260" height="30" rx="5" fill="#e0e0e0"/>
                     
                     <rect x="310" y="90" width="280" height="130" rx="10" fill="#f8f9fa"/>
-                    <circle cx="450" cy="155" r="40" fill="#667eea" opacity="0.3"/>
+                    <image href="image/Acadex-logo.webp" x="410" y="115" width="80" height="80" opacity="0.5"/>
                     
                     <rect x="310" y="240" width="280" height="140" rx="10" fill="#f8f9fa"/>
                     <rect x="320" y="250" width="120" height="10" rx="5" fill="#667eea" opacity="0.5"/>
@@ -129,7 +128,7 @@
 
     <script>
         // Typing animation
-        const text = "Automate Your Academic Management";
+        const text = "Automated Academic Experience";
         const typingElement = document.getElementById('typing-text');
         let index = 0;
 
@@ -137,7 +136,7 @@
             if (index < text.length) {
                 let currentText = text.substring(0, index + 1);
                 if (index >= 22) {
-                    currentText = text.substring(0, 22) + '<br>' + text.substring(22, index + 1);
+                    currentText = text.substring(0, 19) + '<br>' + text.substring(19, index + 1);
                 }
                 typingElement.innerHTML = currentText + '<span class="cursor">|</span>';
                 index++;

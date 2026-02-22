@@ -120,7 +120,9 @@ try {
                 <div class="notification-wrapper">
                     <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge"><?php echo $requestCount; ?></span>
+                        <?php if (!empty($requestCount)): ?>
+                            <span class="notification-badge"><?php echo $requestCount; ?></span>
+                        <?php endif; ?>
                     </button>
                     <div class="notification-menu" id="notificationMenu" aria-hidden="true">
                         <div class="notification-header">
@@ -1082,3 +1084,14 @@ try {
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+

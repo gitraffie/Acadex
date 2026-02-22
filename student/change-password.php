@@ -12,6 +12,8 @@ $studentEmail = $_SESSION['student_email'] ?? '';
 $studentNumber = $_SESSION['student_number'] ?? '';
 $message = '';
 $messageType = '';
+$redirectToLogin = false;
+$redirectUrl = '../auth/student-login.php?success=' . urlencode('Password updated. Please sign in again.');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $currentPassword = $_POST['current_password'] ?? '';
@@ -37,11 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
                 $update = $pdo->prepare("UPDATE students SET password = ?, must_change_password = 0 WHERE id = ?");
                 $update->execute([$newHash, $studentId]);
-                $message = 'Password updated successfully.';
-                $messageType = 'success';
-
-                // If they used the default student number, force them to log in again
+                // Force re-login after a successful password change
                 session_regenerate_id(true);
+                session_unset();
+                session_destroy();
+                $message = 'Password updated. Please sign in again.';
+                $messageType = 'success';
+                $redirectToLogin = true;
             }
         } catch (PDOException $e) {
             $message = 'Unable to update password right now.';
@@ -60,12 +64,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../css/student/change-password.css">
+    <?php if ($redirectToLogin): ?>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <?php endif; ?>
 </head>
 <body>
     <div class="card">
         <h1>Change Password</h1>
-        <p>Please set a new password. Default passwords (student number) must be changed.</p>
-        <?php if ($message): ?>
+        <p>Please set a new password. Default passwords must be changed.</p>
+        <?php if ($message && !$redirectToLogin): ?>
             <div class="alert <?php echo $messageType; ?>"><?php echo htmlspecialchars($message); ?></div>
         <?php endif; ?>
         <form method="POST" action="">
@@ -85,5 +92,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         <p class="helper" style="margin-top:1rem;">After updating, return to your <a href="s-dashboard.php">dashboard</a>.</p>
     </div>
+
+    <?php if ($redirectToLogin): ?>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: <?php echo json_encode($message); ?>,
+                    confirmButtonText: 'OK'
+                }).then(function () {
+                    window.location.href = <?php echo json_encode($redirectUrl); ?>;
+                });
+            });
+        </script>
+    <?php endif; ?>
 </body>
 </html>

@@ -39,18 +39,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $lastName = trim($_POST['last_name']);
         $phone = trim($_POST['phone']);
         $address = trim($_POST['address']);
-        
+
         try {
             $fullName = trim($firstName . ' ' . $lastName);
             $stmt = $pdo->prepare("UPDATE users SET first_name = ?, last_name = ?, full_name = ?, phone = ?, address = ? WHERE id = ?");
             $stmt->execute([$firstName, $lastName, $fullName, $phone, $address, $userId]);
-            
+
             $_SESSION['first_name'] = $firstName;
             $_SESSION['last_name'] = $lastName;
             $_SESSION['full_name'] = $fullName;
             $message = 'Profile updated successfully!';
             $messageType = 'success';
-            
+
             // Refresh user data
             $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
             $stmt->execute([$userId]);
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $currentPassword = $_POST['current_password'];
         $newPassword = $_POST['new_password'];
         $confirmPassword = $_POST['confirm_password'];
-        
+
         if ($newPassword !== $confirmPassword) {
             $message = 'New passwords do not match!';
             $messageType = 'error';
@@ -75,11 +75,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Verify current password
             if (password_verify($currentPassword, $user['password'])) {
                 $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-                
+
                 try {
                     $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
                     $stmt->execute([$hashedPassword, $userId]);
-                    
+
                     $message = 'Password changed successfully!';
                     $messageType = 'success';
                 } catch (PDOException $e) {
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emailNotifications = isset($_POST['email_notifications']) ? 1 : 0;
         $gradeNotifications = isset($_POST['grade_notifications']) ? 1 : 0;
         $attendanceNotifications = isset($_POST['attendance_notifications']) ? 1 : 0;
-        
+
         $message = 'Notification preferences updated!';
         $messageType = 'success';
     }
@@ -104,17 +104,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - Acadex</title>
-    <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp"/>
+    <link rel="icon" type="image/webp" href="../image/Acadex-logo.webp" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
+
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../css/teacher/t-settings.css">
 </head>
+
 <body>
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -197,7 +199,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="notification-wrapper">
                     <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge"><?php echo $requestCount; ?></span>
+                        <?php if (!empty($requestCount)): ?>
+                            <span class="notification-badge"><?php echo $requestCount; ?></span>
+                        <?php endif; ?>
                     </button>
                     <div class="notification-menu" id="notificationMenu" aria-hidden="true">
                         <div class="notification-header">
@@ -208,27 +212,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php if (!empty($studentRequests)): ?>
                                 <?php foreach ($studentRequests as $request): ?>
                                     <?php
-                                        $requestType = $request['request_type'] ?? 'grade';
-                                        $term = $request['term'] ?? '';
-                                        $termText = '';
-                                        if ($requestType === 'grade') {
-                                            if ($term === 'all') {
-                                                $termText = 'all ';
-                                            } elseif (!empty($term)) {
-                                                $termText = ucfirst($term) . ' ';
-                                            }
+                                    $requestType = $request['request_type'] ?? 'grade';
+                                    $term = $request['term'] ?? '';
+                                    $termText = '';
+                                    if ($requestType === 'grade') {
+                                        if ($term === 'all') {
+                                            $termText = 'all ';
+                                        } elseif (!empty($term)) {
+                                            $termText = ucfirst($term) . ' ';
                                         }
-                                        $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
-                                        $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
-                                        $description = $requestType === 'attendance'
-                                            ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                    }
+                                    $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                                    $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                                    $description = $requestType === 'attendance'
+                                        ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                        : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
                                     ?>
                                     <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
-                                         data-request-type="<?php echo htmlspecialchars($requestType); ?>"
-                                         data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
-                                         data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
-                                         data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                                        data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                                        data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                                        data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                                        data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
                                         <div class="notification-title"><?php echo htmlspecialchars($title); ?></div>
                                         <div class="notification-text"><?php echo htmlspecialchars(trim($description)); ?></div>
                                         <div class="notification-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
@@ -245,11 +249,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="notification-footer">
                             <button type="button" class="notification-link" id="openRequestsModal">See all →</button>
                         </div>
-</div>
+                    </div>
                 </div>
-                <a href="t-dashboard.php" class="back-btn">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
+                <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
 
@@ -283,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Profile Tab -->
                 <div class="tab-pane active" id="profile">
                     <h2 class="section-title">Profile Information</h2>
-                    
+
                     <div class="profile-picture-section">
                         <div class="profile-picture">
                             <img src="../image/default.webp" alt="Profile Picture">
@@ -301,38 +303,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">First Name</label>
-                                <input type="text" name="first_name" class="form-input" 
-                                       value="<?php echo htmlspecialchars($user['first_name'] ?? ''); ?>" required>
+                                <input type="text" name="first_name" class="form-input"
+                                    value="<?php echo htmlspecialchars($user['first_name'] ?? ''); ?>" required>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Last Name</label>
-                                <input type="text" name="last_name" class="form-input" 
-                                       value="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>" required>
+                                <input type="text" name="last_name" class="form-input"
+                                    value="<?php echo htmlspecialchars($user['last_name'] ?? ''); ?>" required>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Email Address</label>
-                                <input type="email" class="form-input" 
-                                       value="<?php echo htmlspecialchars($user['email'] ?? ''); ?>" disabled>
+                                <input type="email" class="form-input"
+                                    value="<?php echo htmlspecialchars($user['email'] ?? ''); ?>" disabled>
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Phone Number</label>
-                                <input type="tel" name="phone" class="form-input" 
-                                       value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>">
+                                <input type="tel" name="phone" class="form-input"
+                                    value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">User ID</label>
-                                <input type="text" class="form-input" 
-                                       value="<?php echo htmlspecialchars($user['id'] ?? ''); ?>" disabled>
+                                <input type="text" class="form-input"
+                                    value="<?php echo htmlspecialchars($user['id'] ?? ''); ?>" disabled>
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">Address</label>
-                            <input type="text" name="address" class="form-input" 
-                                   value="<?php echo htmlspecialchars($user['address'] ?? ''); ?>">
+                            <input type="text" name="address" class="form-input"
+                                value="<?php echo htmlspecialchars($user['address'] ?? ''); ?>">
                         </div>
 
                         <div class="form-actions">
@@ -347,7 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fas fa-shield-alt"></i>
                         <p>Add an extra layer of security to your account by enabling two-factor authentication.</p>
                     </div>
-                    
+
                     <div class="switch-group">
                         <div class="switch-info">
                             <h4>Enable Two-Factor Authentication</h4>
@@ -371,7 +373,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Notifications Tab -->
                 <div class="tab-pane" id="notifications">
                     <h2 class="section-title">Notification Preferences</h2>
-                    
+
                     <form method="POST" action="">
                         <div class="switch-group">
                             <div class="switch-info">
@@ -439,7 +441,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Preferences Tab -->
                 <div class="tab-pane" id="preferences">
                     <h2 class="section-title">System Preferences</h2>
-                    
+
                     <div class="form-group">
                         <label class="form-label">Theme</label>
                         <select class="form-input">
@@ -539,27 +541,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php if (!empty($pendingRequestsAll)): ?>
                     <?php foreach ($pendingRequestsAll as $request): ?>
                         <?php
-                            $requestType = $request['request_type'] ?? 'grade';
-                            $term = $request['term'] ?? '';
-                            $termText = '';
-                            if ($requestType === 'grade') {
-                                if ($term === 'all') {
-                                    $termText = 'all ';
-                                } elseif (!empty($term)) {
-                                    $termText = ucfirst($term) . ' ';
-                                }
+                        $requestType = $request['request_type'] ?? 'grade';
+                        $term = $request['term'] ?? '';
+                        $termText = '';
+                        if ($requestType === 'grade') {
+                            if ($term === 'all') {
+                                $termText = 'all ';
+                            } elseif (!empty($term)) {
+                                $termText = ucfirst($term) . ' ';
                             }
-                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
-                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
-                            $description = $requestType === 'attendance'
-                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        }
+                        $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                        $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                        $description = $requestType === 'attendance'
+                            ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
-                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
-                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
-                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
-                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                            data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                            data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                            data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
                             <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
                             <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
                             <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
@@ -574,27 +576,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php if (!empty($completedRequestsAll)): ?>
                     <?php foreach ($completedRequestsAll as $request): ?>
                         <?php
-                            $requestType = $request['request_type'] ?? 'grade';
-                            $term = $request['term'] ?? '';
-                            $termText = '';
-                            if ($requestType === 'grade') {
-                                if ($term === 'all') {
-                                    $termText = 'all ';
-                                } elseif (!empty($term)) {
-                                    $termText = ucfirst($term) . ' ';
-                                }
+                        $requestType = $request['request_type'] ?? 'grade';
+                        $term = $request['term'] ?? '';
+                        $termText = '';
+                        if ($requestType === 'grade') {
+                            if ($term === 'all') {
+                                $termText = 'all ';
+                            } elseif (!empty($term)) {
+                                $termText = ucfirst($term) . ' ';
                             }
-                            $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
-                            $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
-                            $description = $requestType === 'attendance'
-                                ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                        }
+                        $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                        $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                        $description = $requestType === 'attendance'
+                            ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
-                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
-                             data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
-                             data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
-                             data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
+                            data-request-type="<?php echo htmlspecialchars($requestType); ?>"
+                            data-class-id="<?php echo htmlspecialchars($request['class_id'] ?? ''); ?>"
+                            data-student-id="<?php echo htmlspecialchars($request['student_id'] ?? ''); ?>"
+                            data-request-id="<?php echo htmlspecialchars($request['id'] ?? ''); ?>">
                             <div class="request-title"><?php echo htmlspecialchars($title); ?></div>
                             <div class="request-text"><?php echo htmlspecialchars(trim($description)); ?></div>
                             <div class="request-time"><?php echo htmlspecialchars(formatTimeAgo($request['created_at'] ?? null)); ?></div>
@@ -612,7 +614,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
 
     <script>
-
         // Truncate user info
         function truncateUserInfo() {
             const nameElement = document.querySelector('.user-details h3');
@@ -657,14 +658,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const tabId = btn.getAttribute('data-tab');
-                
+
                 tabBtns.forEach(b => b.classList.remove('active'));
                 tabPanes.forEach(p => p.classList.remove('active'));
-                
+
                 btn.classList.add('active');
                 document.getElementById(tabId).classList.add('active');
             });
         });
+
+        function logout() {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Are you sure you want to logout?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Logout',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '../auth/teacher-login.php';
+                }
+            });
+        }
 
         // Delete account confirmation
         function deleteAccount() {
@@ -714,12 +730,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             newPasswordInput.addEventListener('input', function() {
                 const password = this.value;
                 let strength = 0;
-                
+
                 if (password.length >= 8) strength++;
                 if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength++;
                 if (password.match(/\d/)) strength++;
                 if (password.match(/[^a-zA-Z\d]/)) strength++;
-                
+
                 // You can add a visual indicator here
             });
         }
@@ -751,7 +767,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (passwordInputs.length >= 2) {
                     const newPass = this.querySelector('input[name="new_password"]');
                     const confirmPass = this.querySelector('input[name="confirm_password"]');
-                    
+
                     if (newPass && confirmPass && newPass.value !== confirmPass.value) {
                         e.preventDefault();
                         Swal.fire({
@@ -763,7 +779,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
         });
-    
+
         const notificationBtn = document.getElementById('notificationBtn');
         const notificationMenu = document.getElementById('notificationMenu');
         const openRequestsModal = document.getElementById('openRequestsModal');
@@ -790,10 +806,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return;
             }
             if (requestId) {
-                const params = new URLSearchParams({ request_id: requestId });
+                const params = new URLSearchParams({
+                    request_id: requestId
+                });
                 fetch('../includes/mark_request_seen.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
                     body: params
                 }).catch(() => {});
             }
@@ -860,8 +880,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 notificationMenu.setAttribute('aria-hidden', 'true');
             }
         });
-</script>
+    </script>
 
 
 </body>
+
 </html>
+
+
+
+
+
+
+
+
+
+
+

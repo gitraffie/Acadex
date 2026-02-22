@@ -9,6 +9,34 @@
     
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../css/auth/teacher-login.css">
+    <style>
+        .login-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+        }
+        .login-btn .btn-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-top-color: #fff;
+            border-radius: 50%;
+            display: none;
+            animation: spin 0.8s linear infinite;
+        }
+        .login-btn.loading .btn-spinner {
+            display: inline-block;
+        }
+        .login-btn.loading .btn-text::after {
+            content: '';
+            display: inline-block;
+            width: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
@@ -50,6 +78,7 @@
                 <div class="form-group">
                     <label for="password">Password</label>
                     <div class="input-wrapper">
+                        <i class="fas fa-lock input-icon"></i>
                         <input
                             type="password"
                             id="password"
@@ -69,7 +98,10 @@
                     <a href="forgot_password.php" class="forgot-password">Forgot Password?</a>
                 </div>
 
-                <button type="submit" name="login-btn" class="login-btn">Sign In</button>
+                <button type="submit" name="login-btn" class="login-btn">
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                    <span class="btn-text">Sign In</span>
+                </button>
             </form>
 
             <div class="other-login">
@@ -122,13 +154,15 @@
 
             // If validation passes, show loading state
             const submitBtn = loginForm.querySelector('.login-btn');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Signing In...';
+            const originalText = submitBtn.querySelector('.btn-text').textContent;
+            submitBtn.querySelector('.btn-text').textContent = 'Signing In...';
+            submitBtn.classList.add('loading');
             submitBtn.disabled = true;
 
             // Uncomment below for demo without backend
             // setTimeout(() => {
-            //     submitBtn.textContent = originalText;
+            //     submitBtn.querySelector('.btn-text').textContent = originalText;
+            //     submitBtn.classList.remove('loading');
             //     submitBtn.disabled = false;
             //     showSuccess('Login successful! Redirecting...');
             //     setTimeout(() => {

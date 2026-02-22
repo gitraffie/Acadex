@@ -255,19 +255,13 @@ try {
                 </div>
             </div>
             <div class="top-actions">
-                    <button type="button" class="request-btn request-btn-inline" id="openRequestModal" <?php echo empty($classId) ? 'disabled' : ''; ?>>
-                        <svg class="request-btn-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        New Request
-                    </button>
                 <button class="logout-btn" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
             </div>
         </div>
 
-        <div class="banner student-banner">
+        <div class="banner student-banner<?php echo !empty($classId) ? ' is-hidden' : ''; ?>" id="studentBanner">
             <div class="banner-content">
                 <div class="banner-text">
                     <span class="banner-tag">Student Dashboard</span>
@@ -683,18 +677,7 @@ try {
         if (showClassesLink) {
             showClassesLink.addEventListener('click', (event) => {
                 event.preventDefault();
-                const classesGrid = document.getElementById('studentClassesGrid');
-                const dashboardContent = document.getElementById('studentDashboardContent');
-                if (classesGrid) {
-                    classesGrid.classList.remove('is-hidden');
-                }
-                if (dashboardContent) {
-                    dashboardContent.style.display = 'none';
-                }
-                const breadcrumb = document.querySelector('.breadcrumb');
-                if (breadcrumb) {
-                    breadcrumb.style.display = 'none';
-                }
+                window.location.href = 's-dashboard.php';
             });
         }
 

@@ -211,6 +211,10 @@
             color: #6b55bb;
         }
 
+        .student-banner.is-hidden {
+            display: none;
+        }
+
         .classes-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

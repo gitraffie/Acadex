@@ -1,5 +1,5 @@
 <?php
-// Password reset handler for teachers
+// Password reset handler for students
 include 'connection.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
@@ -60,7 +60,7 @@ function sendVerificationEmail($email, $code) {
 }
 
 try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS password_reset_requests (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS password_reset_requests_students (
         id INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(255) NOT NULL,
         verification_code VARCHAR(20) NOT NULL,
@@ -72,7 +72,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
     // Expire old codes
-    $pdo->exec("UPDATE password_reset_requests SET status = 'Expired' WHERE status IN ('Pending','Verified') AND expires_at < NOW()");
+    $pdo->exec("UPDATE password_reset_requests_students SET status = 'Expired' WHERE status IN ('Pending','Verified') AND expires_at < NOW()");
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'message' => 'Service unavailable.']);
     exit();
@@ -85,16 +85,16 @@ if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
 if ($action === 'request_code') {
     try {
-        $userStmt = $pdo->prepare("SELECT id, user_type FROM users WHERE email = ?");
-        $userStmt->execute([$email]);
-        $user = $userStmt->fetch();
-        if (!$user || $user['user_type'] !== 'teacher') {
-            echo json_encode(['success' => false, 'message' => 'No teacher account found for that email.']);
+        $studentStmt = $pdo->prepare("SELECT id FROM students WHERE student_email = ?");
+        $studentStmt->execute([$email]);
+        $student = $studentStmt->fetch();
+        if (!$student) {
+            echo json_encode(['success' => false, 'message' => 'No student account found for that email.']);
             exit();
         }
 
         // Enforce 15-minute cooldown between successful sends
-        $lastStmt = $pdo->prepare("SELECT created_at FROM password_reset_requests WHERE email = ? AND status IN ('Pending','Verified','Completed') ORDER BY created_at DESC LIMIT 1");
+        $lastStmt = $pdo->prepare("SELECT created_at FROM password_reset_requests_students WHERE email = ? AND status IN ('Pending','Verified','Completed') ORDER BY created_at DESC LIMIT 1");
         $lastStmt->execute([$email]);
         $lastRequest = $lastStmt->fetch();
         if ($lastRequest && !empty($lastRequest['created_at'])) {
@@ -118,11 +118,11 @@ if ($action === 'request_code') {
         $code = generateVerificationCode();
         $expires = date('Y-m-d H:i:s', time() + 15 * 60);
 
-        $insert = $pdo->prepare("INSERT INTO password_reset_requests (email, verification_code, status, expires_at) VALUES (?, ?, 'Pending', ?)");
+        $insert = $pdo->prepare("INSERT INTO password_reset_requests_students (email, verification_code, status, expires_at) VALUES (?, ?, 'Pending', ?)");
         $insert->execute([$email, $code, $expires]);
 
         if (!sendVerificationEmail($email, $code)) {
-            $pdo->prepare("UPDATE password_reset_requests SET status='Failed' WHERE email = ? AND verification_code = ? ORDER BY created_at DESC LIMIT 1")->execute([$email, $code]);
+            $pdo->prepare("UPDATE password_reset_requests_students SET status='Failed' WHERE email = ? AND verification_code = ? ORDER BY created_at DESC LIMIT 1")->execute([$email, $code]);
             echo json_encode(['success' => false, 'message' => 'Failed to send verification email. Please try again.']);
             exit();
         }
@@ -137,7 +137,7 @@ if ($action === 'request_code') {
 
 if ($action === 'verify_code') {
     try {
-        $stmt = $pdo->prepare("SELECT * FROM password_reset_requests WHERE email = ? AND status IN ('Pending','Verified') ORDER BY created_at DESC LIMIT 1");
+        $stmt = $pdo->prepare("SELECT * FROM password_reset_requests_students WHERE email = ? AND status IN ('Pending','Verified') ORDER BY created_at DESC LIMIT 1");
         $stmt->execute([$email]);
         $request = $stmt->fetch();
         if (!$request) {
@@ -146,7 +146,7 @@ if ($action === 'verify_code') {
         }
 
         if ($request['status'] === 'Expired' || strtotime($request['expires_at']) < time()) {
-            $pdo->prepare("UPDATE password_reset_requests SET status='Expired' WHERE id=?")->execute([$request['id']]);
+            $pdo->prepare("UPDATE password_reset_requests_students SET status='Expired' WHERE id=?")->execute([$request['id']]);
             echo json_encode(['success' => false, 'message' => 'Verification code has expired.']);
             exit();
         }
@@ -156,7 +156,7 @@ if ($action === 'verify_code') {
             exit();
         }
 
-        $pdo->prepare("UPDATE password_reset_requests SET status='Verified', verified_at=NOW() WHERE id=?")->execute([$request['id']]);
+        $pdo->prepare("UPDATE password_reset_requests_students SET status='Verified', verified_at=NOW() WHERE id=?")->execute([$request['id']]);
         echo json_encode(['success' => true, 'message' => 'Code verified. You may now set a new password.']);
         exit();
     } catch (PDOException $e) {
@@ -180,7 +180,7 @@ if ($action === 'set_password') {
     }
 
     try {
-        $stmt = $pdo->prepare("SELECT * FROM password_reset_requests WHERE email = ? AND status = 'Verified' ORDER BY created_at DESC LIMIT 1");
+        $stmt = $pdo->prepare("SELECT * FROM password_reset_requests_students WHERE email = ? AND status = 'Verified' ORDER BY created_at DESC LIMIT 1");
         $stmt->execute([$email]);
         $request = $stmt->fetch();
         if (!$request) {
@@ -189,7 +189,7 @@ if ($action === 'set_password') {
         }
 
         if (strtotime($request['expires_at']) < time()) {
-            $pdo->prepare("UPDATE password_reset_requests SET status='Expired' WHERE id=?")->execute([$request['id']]);
+            $pdo->prepare("UPDATE password_reset_requests_students SET status='Expired' WHERE id=?")->execute([$request['id']]);
             echo json_encode(['success' => false, 'message' => 'Verification code has expired.']);
             exit();
         }
@@ -200,10 +200,10 @@ if ($action === 'set_password') {
         }
 
         $hashed = password_hash($password, PASSWORD_DEFAULT);
-        $updateUser = $pdo->prepare("UPDATE users SET password = ? WHERE email = ? AND user_type = 'teacher'");
-        $updateUser->execute([$hashed, $email]);
+        $updateStudent = $pdo->prepare("UPDATE students SET password = ?, must_change_password = 0 WHERE student_email = ?");
+        $updateStudent->execute([$hashed, $email]);
 
-        $pdo->prepare("UPDATE password_reset_requests SET status='Completed', completed_at=NOW() WHERE id=?")->execute([$request['id']]);
+        $pdo->prepare("UPDATE password_reset_requests_students SET status='Completed', completed_at=NOW() WHERE id=?")->execute([$request['id']]);
 
         echo json_encode(['success' => true, 'message' => 'Password updated. You can now sign in.']);
         exit();
