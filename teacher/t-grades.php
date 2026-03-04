@@ -135,6 +135,7 @@ try {
                                     <?php
                                         $requestType = $request['request_type'] ?? 'grade';
                                         $term = $request['term'] ?? '';
+                                        $component = $request['grade_component'] ?? '';
                                         $termText = '';
                                         if ($requestType === 'grade') {
                                             if ($term === 'all') {
@@ -143,11 +144,15 @@ try {
                                                 $termText = ucfirst($term) . ' ';
                                             }
                                         }
+                                        $componentText = '';
+                                        if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                            $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                                        }
                                         $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                                         $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                                         $description = $requestType === 'attendance'
                                             ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                            : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                                     ?>
                                     <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                                          data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -352,6 +357,7 @@ try {
                         <?php
                             $requestType = $request['request_type'] ?? 'grade';
                             $term = $request['term'] ?? '';
+                            $component = $request['grade_component'] ?? '';
                             $termText = '';
                             if ($requestType === 'grade') {
                                 if ($term === 'all') {
@@ -360,11 +366,15 @@ try {
                                     $termText = ucfirst($term) . ' ';
                                 }
                             }
+                            $componentText = '';
+                            if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                            }
                             $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                             $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                             $description = $requestType === 'attendance'
                                 ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                              data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -387,6 +397,7 @@ try {
                         <?php
                             $requestType = $request['request_type'] ?? 'grade';
                             $term = $request['term'] ?? '';
+                            $component = $request['grade_component'] ?? '';
                             $termText = '';
                             if ($requestType === 'grade') {
                                 if ($term === 'all') {
@@ -395,11 +406,15 @@ try {
                                     $termText = ucfirst($term) . ' ';
                                 }
                             }
+                            $componentText = '';
+                            if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                            }
                             $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                             $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                             $description = $requestType === 'attendance'
                                 ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                              data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -1111,7 +1126,7 @@ try {
             confirmAction('Are you sure you want to logout?', { confirmText: 'Logout' })
                 .then((confirmed) => {
                     if (confirmed) {
-                        window.location.href = '../auth/teacher-login.php';
+                        window.location.href = '../includes/logout.php?type=teacher';
                     }
                 });
         }
@@ -1605,16 +1620,112 @@ try {
                 document.getElementById('editGradesContent').innerHTML = formHtml;
                 document.getElementById('editGradesModal').style.display = 'block';
 
-                // Add event listeners to update calculated grade in real-time
+                // Track current term and dirty state for auto-save on term switch
+                let currentEditTerm = 'prelim';
+                let hasUnsavedChanges = false;
+                let isAutoSaving = false;
+
+                // Add event listeners to update calculated grade in real-time and track changes
                 const inputs = document.querySelectorAll('#gradeEditForm .grade-input');
                 inputs.forEach(input => {
-                    input.addEventListener('input', updateCalculatedGradeDisplay);
+                    input.addEventListener('input', () => {
+                        hasUnsavedChanges = true;
+                        updateCalculatedGradeDisplay();
+                    });
                 });
 
-                // Add event listener for term change to switch grades
+                async function autoSaveTermGrades(termToSave) {
+                    if (isAutoSaving) return;
+                    isAutoSaving = true;
+
+                    try {
+                        const classStandingValue = document.getElementById('class_standing')?.value || '';
+                        const examValue = document.getElementById('exam')?.value || '';
+
+                        const response = await fetch('../includes/save_scores.php', {
+                            method: 'POST',
+                            body: new URLSearchParams({
+                                class_id: currentClassId,
+                                student_id: studentId,
+                                student_number: student.student_number,
+                                term: termToSave.charAt(0).toUpperCase() + termToSave.slice(1),
+                                class_standing: classStandingValue,
+                                exam: examValue
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Server returned ${response.status}`);
+                        }
+
+                        const text = await response.text();
+                        let result;
+                        try {
+                            result = JSON.parse(text);
+                        } catch (e) {
+                            throw new Error('Invalid server response');
+                        }
+
+                        if (result.success) {
+                            // Update local caches with the saved values for the term
+                            allStudentGrades[termToSave] = {
+                                class_standing: classStandingValue,
+                                exam: examValue
+                            };
+                            updateLocalGrades(
+                                student.student_number,
+                                termToSave,
+                                classStandingValue,
+                                examValue
+                            );
+                            hasUnsavedChanges = false;
+                        } else {
+                            alert('Error saving grades: ' + result.message);
+                        }
+                    } catch (error) {
+                        console.error('Auto-save error:', error);
+                        alert('Error auto-saving grades: ' + error.message);
+                    } finally {
+                        isAutoSaving = false;
+                    }
+                }
+
+                // Add event listener for term change to auto-save current term then switch grades
                 const termSelect = document.getElementById('term');
-                termSelect.addEventListener('change', function() {
+                termSelect.addEventListener('change', async function() {
                     const selectedTerm = this.value;
+                    if (selectedTerm === currentEditTerm) {
+                        return;
+                    }
+
+                    const classStandingValue = document.getElementById('class_standing')?.value || '';
+                    const examValue = document.getElementById('exam')?.value || '';
+                    const hasValues = classStandingValue !== '' || examValue !== '';
+
+                    if (hasUnsavedChanges && hasValues) {
+                        const result = await Swal.fire({
+                            title: 'Save changes?',
+                            text: 'You have unsaved grades for this term. Save before switching?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            showDenyButton: true,
+                            confirmButtonText: 'Save and switch',
+                            denyButtonText: 'Switch without saving',
+                            cancelButtonText: 'Stay'
+                        });
+
+                        if (result.isConfirmed) {
+                            await autoSaveTermGrades(currentEditTerm);
+                        } else if (result.isDenied) {
+                            // Switch without saving
+                        } else {
+                            // Revert selection and stay on current term
+                            this.value = currentEditTerm;
+                            return;
+                        }
+                    }
+
+                    currentEditTerm = selectedTerm;
                     const termGrades = getTermGrades(selectedTerm);
 
                     // Update form fields with the selected term's grades
@@ -3285,6 +3396,7 @@ try {
 
 </body>
 </html>
+
 
 
 

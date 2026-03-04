@@ -17,6 +17,7 @@ function ensureStudentRequestsTable($pdo) {
             teacher_email VARCHAR(255) NOT NULL,
             request_type ENUM('grade','attendance') NOT NULL,
             term ENUM('prelim','midterm','finals','all') NULL,
+            grade_component ENUM('class_standing','exam') NULL,
             message TEXT NULL,
             status ENUM('pending','resolved') NOT NULL DEFAULT 'pending',
             is_seen TINYINT(1) NOT NULL DEFAULT 0,
@@ -24,6 +25,7 @@ function ensureStudentRequestsTable($pdo) {
             INDEX idx_teacher_status (teacher_email, status, created_at)
         )
     ");
+    $pdo->exec("ALTER TABLE student_requests ADD COLUMN IF NOT EXISTS grade_component ENUM('class_standing','exam') NULL");
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -39,6 +41,7 @@ if (!isset($_SESSION['student_id'])) {
 $studentId = (int)$_SESSION['student_id'];
 $requestType = $_POST['request_type'] ?? '';
 $term = $_POST['term'] ?? null;
+$gradeComponent = $_POST['grade_component'] ?? null;
 $classId = isset($_POST['class_id']) ? (int)$_POST['class_id'] : 0;
 $message = trim($_POST['message'] ?? '');
 
@@ -49,6 +52,13 @@ if (!in_array($requestType, ['grade', 'attendance'], true)) {
 
 if ($term !== null && $term !== '' && !in_array($term, ['prelim', 'midterm', 'finals', 'all'], true)) {
     echo json_encode(['success' => false, 'message' => 'Invalid term']);
+    exit();
+}
+
+if ($requestType !== 'grade' || $term === null || $term === '' || $term === 'all') {
+    $gradeComponent = null;
+} elseif ($gradeComponent !== null && $gradeComponent !== '' && !in_array($gradeComponent, ['class_standing', 'exam'], true)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid grade component']);
     exit();
 }
 
@@ -104,9 +114,10 @@ try {
             teacher_email,
             request_type,
             term,
+            grade_component,
             message
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $insert->execute([
         $studentId,
@@ -118,6 +129,7 @@ try {
         $teacherEmail,
         $requestType,
         $term ?: null,
+        $gradeComponent ?: null,
         $message !== '' ? $message : null
     ]);
 

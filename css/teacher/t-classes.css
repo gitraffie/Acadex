@@ -712,6 +712,13 @@
             margin: 0;
         }
 
+        .modal-subtitle {
+            margin-top: 6px;
+            margin-bottom: 0;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
         .close-btn {
             background: none;
             border: none;

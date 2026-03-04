@@ -163,27 +163,29 @@ try {
     $grades = null;
 }
 
-// Fetch per-class grade entries from calculated_grades
+// Fetch per-class grade entries from calculated_grades (scoped to selected class)
 $gradeEntries = [];
 try {
-    $stmt = $pdo->prepare("
-        SELECT 
-            cg.class_id,
-            c.class_name,
-            c.section,
-            c.term,
-            cg.prelim,
-            cg.midterm,
-            cg.finals,
-            cg.final_grade,
-            cg.created_at
-        FROM calculated_grades cg
-        LEFT JOIN classes c ON cg.class_id = c.id
-        WHERE cg.student_number = ?
-        ORDER BY cg.created_at DESC
-    ");
-    $stmt->execute([$studentNumber]);
-    $gradeEntries = $stmt->fetchAll();
+    if (!empty($classId)) {
+        $stmt = $pdo->prepare("
+            SELECT 
+                cg.class_id,
+                c.class_name,
+                c.section,
+                c.term,
+                cg.prelim,
+                cg.midterm,
+                cg.finals,
+                cg.final_grade,
+                cg.created_at
+            FROM calculated_grades cg
+            LEFT JOIN classes c ON cg.class_id = c.id
+            WHERE cg.student_number = ? AND cg.class_id = ?
+            ORDER BY cg.created_at DESC
+        ");
+        $stmt->execute([$studentNumber, $classId]);
+        $gradeEntries = $stmt->fetchAll();
+    }
 } catch (PDOException $e) {
     $gradeEntries = [];
 }
@@ -195,6 +197,7 @@ try {
         SELECT 
             request_type,
             term,
+            grade_component,
             class_name,
             status,
             created_at
@@ -501,11 +504,16 @@ try {
                                     <?php
                                     $requestType = $record['request_type'] ?? 'grade';
                                     $term = $record['term'] ?? '';
+                                    $component = $record['grade_component'] ?? '';
                                     $status = strtolower($record['status'] ?? 'pending');
                                     $typeLabel = $requestType === 'attendance' ? 'Attendance' : 'Grades';
                                     $termLabel = $requestType === 'grade'
                                         ? ($term !== '' ? ucfirst($term) : 'All')
                                         : '-';
+                                    if ($requestType === 'grade' && $term !== '' && $term !== 'all' && $component !== '') {
+                                        $componentLabel = $component === 'class_standing' ? 'Class Standing' : 'Exam';
+                                        $termLabel .= ' (' . $componentLabel . ')';
+                                    }
                                     ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($typeLabel); ?></td>
@@ -558,6 +566,14 @@ try {
                         <option value="all">All</option>
                     </select>
                 </div>
+                <div class="request-row request-row-component is-hidden" id="requestComponentRow">
+                    <label for="requestComponent">Grade Component (optional)</label>
+                    <select id="requestComponent" name="grade_component">
+                        <option value="">Whole term</option>
+                        <option value="class_standing">Class Standing</option>
+                        <option value="exam">Exam</option>
+                    </select>
+                </div>
                 <div class="request-row">
                     <label for="requestMessage">Message (optional)</label>
                     <textarea id="requestMessage" name="message" rows="4" placeholder="Add a short note for your teacher..."></textarea>
@@ -598,7 +614,7 @@ try {
                 })
                 .then((confirmed) => {
                     if (confirmed) {
-                        window.location.href = '../auth/student-login.php';
+                        window.location.href = '../includes/logout.php?type=student';
                     }
                 });
         }
@@ -610,6 +626,9 @@ try {
         const requestForm = document.getElementById('requestForm');
         const requestType = document.getElementById('requestType');
         const requestTermRow = document.getElementById('requestTermRow');
+        const requestTerm = document.getElementById('requestTerm');
+        const requestComponentRow = document.getElementById('requestComponentRow');
+        const requestComponent = document.getElementById('requestComponent');
 
         function toggleRequestModal(show) {
             if (!requestModal) return;
@@ -621,6 +640,21 @@ try {
             if (!requestType || !requestTermRow) return;
             const showTerm = requestType.value === 'grade';
             requestTermRow.classList.toggle('is-hidden', !showTerm);
+            if (!showTerm && requestTerm) {
+                requestTerm.value = '';
+            }
+            updateRequestComponentVisibility();
+        }
+
+        function updateRequestComponentVisibility() {
+            if (!requestType || !requestTerm || !requestComponentRow) return;
+            const showComponent = requestType.value === 'grade'
+                && requestTerm.value !== ''
+                && requestTerm.value !== 'all';
+            requestComponentRow.classList.toggle('is-hidden', !showComponent);
+            if (!showComponent && requestComponent) {
+                requestComponent.value = '';
+            }
         }
 
         if (openRequestModal) {
@@ -647,6 +681,10 @@ try {
             requestType.addEventListener('change', updateRequestTermVisibility);
         }
 
+        if (requestTerm) {
+            requestTerm.addEventListener('change', updateRequestComponentVisibility);
+        }
+
         if (requestForm) {
             requestForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
@@ -661,7 +699,8 @@ try {
                         requestForm.reset();
                         updateRequestTermVisibility();
                         toggleRequestModal(false);
-                        showAlert('Request sent successfully.', 'success', 'Request Sent');
+                        showAlert('Request sent successfully.', 'success', 'Request Sent')
+                            .then(() => location.reload());
                     } else {
                         showAlert(result.message || 'Failed to send request.', 'error', 'Error');
                     }

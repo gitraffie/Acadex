@@ -387,6 +387,61 @@
             color: #888;
         }
 
+        .student-actions {
+            display: inline-flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .student-action-btn {
+            border: 1px solid transparent;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .student-action-btn i {
+            font-size: 0.85rem;
+        }
+
+        .student-action-btn.edit {
+            background: #eef2ff;
+            color: #2f43c2;
+            border-color: #dbe2ff;
+        }
+
+        .student-action-btn.edit:hover {
+            background: #e1e8ff;
+            box-shadow: 0 6px 14px rgba(79, 110, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .student-action-btn.delete {
+            background: #fff0f2;
+            color: #c92b3a;
+            border-color: #ffd6db;
+        }
+
+        .student-action-btn.delete:hover {
+            background: #ffe1e6;
+            box-shadow: 0 6px 14px rgba(221, 53, 69, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .student-action-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+        }
+
         .no-students {
             text-align: center;
             padding: 2rem;
@@ -498,6 +553,17 @@
             font-size: 24px;
             font-weight: 600;
             letter-spacing: -0.5px;
+        }
+
+        .modal-subtitle {
+            margin-top: 6px;
+            margin-bottom: 0;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        #editStudentForm {
+            padding: 20px;
         }
 
         .close {

@@ -1,6 +1,17 @@
 <?php
 include 'connection.php';
 
+function truncate_text($text, $limit = 40) {
+    $text = trim((string)$text);
+    if ($text === '') {
+        return '';
+    }
+    if (mb_strlen($text) <= $limit) {
+        return $text;
+    }
+    return rtrim(mb_substr($text, 0, $limit - 3)) . '...';
+}
+
 // Start session if not already started (for AJAX calls)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -79,6 +90,7 @@ try {
     // Values are already sanitized (ints), so inject directly.
     $dataQuery = "
         SELECT
+            s.id as student_id,
             s.student_number,
             s.first_name,
             s.last_name,
@@ -86,6 +98,7 @@ try {
             s.suffix,
             s.program,
             s.student_email,
+            MIN(c.id) as primary_class_id,
             GROUP_CONCAT(DISTINCT CONCAT(c.class_name, ' - ', c.section, ' (', c.term, ')') ORDER BY c.class_name SEPARATOR ', ') as class_list,
             COUNT(DISTINCT c.id) as class_count
         " . $baseQuery . "
@@ -109,23 +122,57 @@ try {
                         <th>Name</th>
                         <th>Class</th>
                         <th>Program</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>';
         foreach ($students as $student) {
+            $primaryClassId = isset($student['primary_class_id']) ? (int)$student['primary_class_id'] : 0;
             echo '<tr>
                     <td>' . htmlspecialchars($student['student_number']) . '</td>
                     <td class="student-name">';
-            $fullName = htmlspecialchars($student['last_name']) . ', ' . htmlspecialchars($student['first_name']);
+            $fullNameRaw = trim($student['last_name']) . ', ' . trim($student['first_name']);
+            $fullName = htmlspecialchars($fullNameRaw);
             if (!empty($student['middle_initial'])) {
-                $fullName .= ' ' . htmlspecialchars($student['middle_initial']) . '.';
+                $fullNameRaw .= ' ' . trim($student['middle_initial']) . '.';
+                $fullName = htmlspecialchars($fullNameRaw);
             }
             if (!empty($student['suffix'])) {
-                $fullName .= ' ' . htmlspecialchars($student['suffix']);
+                $fullNameRaw .= ' ' . trim($student['suffix']);
+                $fullName = htmlspecialchars($fullNameRaw);
             }
+            $classList = $student['class_list'] ?? '';
+            $classListDisplay = truncate_text($classList, 40);
+            $classListTitle = $classList !== '' ? ' title="' . htmlspecialchars($classList) . '"' : '';
             echo $fullName . '<br><span class="student-email">' . htmlspecialchars($student['student_email']) . '</span></td>
-                    <td>' . (empty($student['class_list']) ? '--' : htmlspecialchars($student['class_list'])) . '</td>
+                    <td' . $classListTitle . '>' . (empty($classList) ? '--' : htmlspecialchars($classListDisplay)) . '</td>
                     <td>' . htmlspecialchars($student['program']) . '</td>
+                    <td>
+                        <div class="student-actions">
+                            <button type="button" class="student-action-btn edit" onclick="openEditStudentModal(this)"
+                                data-student-id="' . htmlspecialchars($student['student_id']) . '"
+                                data-primary-class-id="' . htmlspecialchars((string)$primaryClassId) . '"
+                                data-student-number="' . htmlspecialchars($student['student_number']) . '"
+                                data-first-name="' . htmlspecialchars($student['first_name']) . '"
+                                data-last-name="' . htmlspecialchars($student['last_name']) . '"
+                                data-middle-initial="' . htmlspecialchars($student['middle_initial']) . '"
+                                data-suffix="' . htmlspecialchars($student['suffix']) . '"
+                                data-program="' . htmlspecialchars($student['program']) . '"
+                                data-email="' . htmlspecialchars($student['student_email']) . '"
+                                title="Edit student"
+                                aria-label="Edit student">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button type="button" class="student-action-btn delete" onclick="confirmDeleteStudent(this)"
+                                data-student-id="' . htmlspecialchars($student['student_id']) . '"
+                                data-primary-class-id="' . htmlspecialchars((string)$primaryClassId) . '"
+                                data-student-name="' . htmlspecialchars($fullNameRaw) . '"
+                                title="Delete student"
+                                aria-label="Delete student">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
                   </tr>';
         }
         echo '</tbody></table>';

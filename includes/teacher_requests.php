@@ -37,6 +37,7 @@ try {
                 teacher_email VARCHAR(255) NOT NULL,
                 request_type ENUM('grade','attendance') NOT NULL,
                 term ENUM('prelim','midterm','finals','all') NULL,
+                grade_component ENUM('class_standing','exam') NULL,
                 message TEXT NULL,
                 status ENUM('pending','resolved') NOT NULL DEFAULT 'pending',
                 resolved_at TIMESTAMP NULL,
@@ -49,6 +50,7 @@ try {
         $pdo->exec("ALTER TABLE student_requests ADD COLUMN IF NOT EXISTS is_seen TINYINT(1) NOT NULL DEFAULT 0");
         $pdo->exec("ALTER TABLE student_requests ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP NULL");
         $pdo->exec("ALTER TABLE student_requests ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(255) NULL");
+        $pdo->exec("ALTER TABLE student_requests ADD COLUMN IF NOT EXISTS grade_component ENUM('class_standing','exam') NULL");
     } catch (PDOException $e) {
         // Table or column might already exist without IF NOT EXISTS support.
     }
@@ -60,7 +62,7 @@ try {
         $requestCount = $requestCountResult['request_count'] ?? 0;
 
         $stmt = $pdo->prepare("
-            SELECT id, student_id, student_name, class_id, class_name, request_type, term, created_at, is_seen
+            SELECT id, student_id, student_name, class_id, class_name, request_type, term, grade_component, created_at, is_seen
             FROM student_requests
             WHERE teacher_email = ? AND status = 'pending'
             ORDER BY created_at DESC
@@ -70,7 +72,7 @@ try {
         $studentRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $stmt = $pdo->prepare("
-            SELECT id, student_id, student_name, class_id, class_name, request_type, term, created_at, is_seen
+            SELECT id, student_id, student_name, class_id, class_name, request_type, term, grade_component, created_at, is_seen
             FROM student_requests
             WHERE teacher_email = ? AND status = 'pending'
             ORDER BY created_at DESC
@@ -79,7 +81,7 @@ try {
         $pendingRequestsAll = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $stmt = $pdo->prepare("
-            SELECT id, student_id, student_name, class_id, class_name, request_type, term, created_at, is_seen
+            SELECT id, student_id, student_name, class_id, class_name, request_type, term, grade_component, created_at, is_seen
             FROM student_requests
             WHERE teacher_email = ? AND status = 'resolved'
             ORDER BY created_at DESC
@@ -88,7 +90,7 @@ try {
         $completedRequestsAll = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         $stmt = $pdo->prepare("
-            SELECT id, student_id, student_name, class_id, class_name, request_type, term, created_at, 0 as is_seen
+            SELECT id, student_id, student_name, class_id, class_name, request_type, term, grade_component, created_at, 0 as is_seen
             FROM student_requests
             WHERE teacher_email = ? AND status = 'pending'
             ORDER BY created_at DESC

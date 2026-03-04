@@ -128,20 +128,25 @@ include '../includes/teacher_requests.php';
                                 <?php foreach ($studentRequests as $request): ?>
                                     <?php
                                         $requestType = $request['request_type'] ?? 'grade';
-                                        $term = $request['term'] ?? '';
-                                        $termText = '';
-                                        if ($requestType === 'grade') {
-                                            if ($term === 'all') {
-                                                $termText = 'all ';
-                                            } elseif (!empty($term)) {
-                                                $termText = ucfirst($term) . ' ';
-                                            }
+                                    $term = $request['term'] ?? '';
+                                    $component = $request['grade_component'] ?? '';
+                                    $termText = '';
+                                    if ($requestType === 'grade') {
+                                        if ($term === 'all') {
+                                            $termText = 'all ';
+                                        } elseif (!empty($term)) {
+                                            $termText = ucfirst($term) . ' ';
                                         }
-                                        $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
-                                        $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
-                                        $description = $requestType === 'attendance'
-                                            ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                    }
+                                    $componentText = '';
+                                    if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                        $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                                    }
+                                    $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
+                                    $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
+                                    $description = $requestType === 'attendance'
+                                        ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
+                                        : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                                     ?>
                                     <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                                          data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -207,6 +212,7 @@ include '../includes/teacher_requests.php';
                         <?php
                             $requestType = $request['request_type'] ?? 'grade';
                             $term = $request['term'] ?? '';
+                            $component = $request['grade_component'] ?? '';
                             $termText = '';
                             if ($requestType === 'grade') {
                                 if ($term === 'all') {
@@ -215,11 +221,15 @@ include '../includes/teacher_requests.php';
                                     $termText = ucfirst($term) . ' ';
                                 }
                             }
+                            $componentText = '';
+                            if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                            }
                             $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                             $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                             $description = $requestType === 'attendance'
                                 ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                              data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -242,6 +252,7 @@ include '../includes/teacher_requests.php';
                         <?php
                             $requestType = $request['request_type'] ?? 'grade';
                             $term = $request['term'] ?? '';
+                            $component = $request['grade_component'] ?? '';
                             $termText = '';
                             if ($requestType === 'grade') {
                                 if ($term === 'all') {
@@ -250,11 +261,15 @@ include '../includes/teacher_requests.php';
                                     $termText = ucfirst($term) . ' ';
                                 }
                             }
+                            $componentText = '';
+                            if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                            }
                             $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                             $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                             $description = $requestType === 'attendance'
                                 ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                              data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -406,7 +421,7 @@ include '../includes/teacher_requests.php';
             confirmAction('Are you sure you want to logout?', { confirmText: 'Logout' })
                 .then((confirmed) => {
                     if (confirmed) {
-                        window.location.href = '../auth/teacher-login.php';
+                        window.location.href = '../includes/logout.php?type=teacher';
                     }
                 });
         }
@@ -630,6 +645,153 @@ include '../includes/teacher_requests.php';
             });
         }
 
+        function openEditStudentModal(button) {
+            const modal = document.getElementById('editStudentModal');
+            if (!modal || !button) return;
+
+            document.getElementById('editStudentId').value = button.dataset.studentId || '';
+            document.getElementById('editStudentClassId').value = button.dataset.primaryClassId || '';
+            document.getElementById('editStudentNumber').value = button.dataset.studentNumber || '';
+            document.getElementById('editFirstName').value = button.dataset.firstName || '';
+            document.getElementById('editLastName').value = button.dataset.lastName || '';
+            document.getElementById('editMiddleInitial').value = button.dataset.middleInitial || '';
+            document.getElementById('editSuffix').value = button.dataset.suffix || '';
+            document.getElementById('editEmail').value = button.dataset.email || '';
+            document.getElementById('editProgram').value = button.dataset.program || '';
+
+            modal.style.display = 'block';
+        }
+
+        function updateStudent() {
+            const form = document.getElementById('editStudentForm');
+            const formData = new FormData(form);
+            const submitBtn = document.querySelector('#editStudentModal .btn-primary');
+
+            if (!formData.get('class_id')) {
+                const selectedClassId = classFilter.value;
+                if (selectedClassId) {
+                    formData.set('class_id', selectedClassId);
+                }
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+
+            Swal.fire({
+                title: 'Updating student...',
+                text: 'Please wait while we save the changes.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch('../includes/update_student.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                Swal.close();
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Student Updated!',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#667eea',
+                        timer: 2500,
+                        timerProgressBar: true
+                    }).then(() => {
+                        closeModal('editStudentModal');
+                        loadStudents(currentPage);
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Update Failed',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error updating student:', error);
+                Swal.close();
+                Swal.fire('Error', 'An error occurred while updating the student', 'error');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Changes';
+            });
+        }
+
+        function confirmDeleteStudent(button) {
+            const studentId = button.dataset.studentId || '';
+            const studentName = button.dataset.studentName || 'this student';
+
+            if (!studentId) return;
+
+            confirmAction(`Delete ${studentName}? This will remove the student and all related records.`, {
+                title: 'Delete Student',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+                icon: 'warning'
+            }).then((confirmed) => {
+                if (confirmed) {
+                    deleteStudent(studentId);
+                }
+            });
+        }
+
+        function deleteStudent(studentId) {
+            const formData = new FormData();
+            formData.append('student_id', studentId);
+
+            Swal.fire({
+                title: 'Deleting student...',
+                text: 'Please wait while we remove the student.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch('../includes/delete_student.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                Swal.close();
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Student Deleted',
+                        text: data.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#667eea',
+                        timer: 2500,
+                        timerProgressBar: true
+                    }).then(() => {
+                        loadStudents(currentPage);
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Delete Failed',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting student:', error);
+                Swal.close();
+                Swal.fire('Error', 'An error occurred while deleting the student', 'error');
+            });
+        }
+
         // Import students function
         function importStudents() {
             console.log('Starting importStudents function');
@@ -725,7 +887,10 @@ include '../includes/teacher_requests.php';
     <div id="addStudentModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Add New Student</h2>
+                <div>
+                    <h2>Add New Student</h2>
+                    <p class="modal-subtitle">Note: The default password of your students' account is their Student Number.</p>
+                </div>
                 <span class="close" onclick="closeModal('addStudentModal')">&times;</span>
             </div>
             <form id="addStudentForm">
@@ -783,11 +948,73 @@ include '../includes/teacher_requests.php';
         </div>
     </div>
 
+    <!-- Edit Student Modal -->
+    <div id="editStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Student Data</h2>
+                <span class="close" onclick="closeModal('editStudentModal')">&times;</span>
+            </div>
+            <form id="editStudentForm">
+                <input type="hidden" id="editStudentId" name="student_id">
+                <input type="hidden" id="editStudentClassId" name="class_id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editStudentNumber">Student Number</label>
+                        <input type="text" id="editStudentNumber" name="student_number" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmail">Email</label>
+                        <input type="email" id="editEmail" name="email" placeholder="student@example.com" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editFirstName">First Name</label>
+                        <input type="text" id="editFirstName" name="first_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editLastName">Last Name</label>
+                        <input type="text" id="editLastName" name="last_name" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editMiddleInitial">Middle Initial</label>
+                        <input type="text" id="editMiddleInitial" name="middle_initial" maxlength="5">
+                    </div>
+                    <div class="form-group">
+                        <label for="editSuffix">Suffix</label>
+                        <input type="text" id="editSuffix" name="suffix" maxlength="10">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editProgram">Program</label>
+                        <input type="text" id="editProgram" name="program" placeholder="e.g., Computer Science" required>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('editStudentModal')">Cancel</button>
+                    <button type="button" class="btn-primary" onclick="updateStudent()">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Import Students Modal -->
     <div id="importModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Import Students</h2>
+                <div>
+                    <h2>Import Students</h2>
+                    <p class="modal-subtitle">Note: The default password of your students' account is their Student Number.</p>
+                </div>
                 <span class="close" onclick="closeModal('importModal')">&times;</span>
             </div>
             <form id="importForm">

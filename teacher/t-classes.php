@@ -132,6 +132,7 @@ try {
                                     <?php
                                         $requestType = $request['request_type'] ?? 'grade';
                                         $term = $request['term'] ?? '';
+                                        $component = $request['grade_component'] ?? '';
                                         $termText = '';
                                         if ($requestType === 'grade') {
                                             if ($term === 'all') {
@@ -140,11 +141,15 @@ try {
                                                 $termText = ucfirst($term) . ' ';
                                             }
                                         }
+                                        $componentText = '';
+                                        if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                            $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                                        }
                                         $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                                         $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                                         $description = $requestType === 'attendance'
                                             ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                            : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                                     ?>
                                     <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                                          data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -348,6 +353,7 @@ try {
                         <?php
                             $requestType = $request['request_type'] ?? 'grade';
                             $term = $request['term'] ?? '';
+                            $component = $request['grade_component'] ?? '';
                             $termText = '';
                             if ($requestType === 'grade') {
                                 if ($term === 'all') {
@@ -356,11 +362,15 @@ try {
                                     $termText = ucfirst($term) . ' ';
                                 }
                             }
+                            $componentText = '';
+                            if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                            }
                             $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                             $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                             $description = $requestType === 'attendance'
                                 ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                              data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -383,6 +393,7 @@ try {
                         <?php
                             $requestType = $request['request_type'] ?? 'grade';
                             $term = $request['term'] ?? '';
+                            $component = $request['grade_component'] ?? '';
                             $termText = '';
                             if ($requestType === 'grade') {
                                 if ($term === 'all') {
@@ -391,11 +402,15 @@ try {
                                     $termText = ucfirst($term) . ' ';
                                 }
                             }
+                            $componentText = '';
+                            if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                            }
                             $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                             $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                             $description = $requestType === 'attendance'
                                 ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                              data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -455,7 +470,10 @@ try {
     <div id="addStudentModal" class="modal">
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
-                <h2>Add Students</h2>
+                <div>
+                    <h2>Add Students</h2>
+                    <p class="modal-subtitle">Note: The default password of your students' account is their Student Number.</p>
+                </div>
                 <button class="close-btn" onclick="closeAddStudentModal()">&times;</button>
             </div>
             <div class="modal-tabs">
@@ -762,7 +780,7 @@ try {
             confirmAction('Are you sure you want to logout?', { confirmText: 'Logout' })
                 .then((confirmed) => {
                     if (confirmed) {
-                        window.location.href = '../auth/teacher-login.php';
+                        window.location.href = '../includes/logout.php?type=teacher';
                     }
                 });
         }
@@ -1813,6 +1831,7 @@ try {
     </script>
 </body>
 </html>
+
 
 
 

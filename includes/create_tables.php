@@ -117,6 +117,7 @@ try {
             teacher_email VARCHAR(255) NOT NULL,
             request_type ENUM('grade','attendance') NOT NULL,
             term ENUM('prelim','midterm','finals','all') NULL,
+            grade_component ENUM('class_standing','exam') NULL,
             message TEXT NULL,
             status ENUM('pending','resolved') NOT NULL DEFAULT 'pending',
             resolved_at TIMESTAMP NULL,

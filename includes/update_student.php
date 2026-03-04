@@ -25,24 +25,36 @@ $middle_initial = $_POST['middle_initial'] ?? '';
 $suffix = $_POST['suffix'] ?? '';
 $program = $_POST['program'] ?? '';
 
-if (empty($student_id) || empty($class_id) || empty($student_number) || empty($email) || empty($first_name) || empty($last_name) || empty($program)) {
+if (empty($student_id) || empty($student_number) || empty($email) || empty($first_name) || empty($last_name) || empty($program)) {
     echo json_encode(['success' => false, 'message' => 'All required fields must be provided']);
     exit();
 }
 
 try {
-    // First, verify that the student belongs to the class and the class belongs to the teacher
-    $stmt = $pdo->prepare('
-        SELECT sc.id FROM student_classes sc
-        JOIN classes c ON sc.class_id = c.id
-        WHERE sc.student_id = ? AND sc.class_id = ? AND c.user_email = ?
-    ');
-    $stmt->execute([$student_id, $class_id, $_SESSION['email']]);
-    $student = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!empty($class_id)) {
+        // Verify that the student belongs to the class and the class belongs to the teacher
+        $stmt = $pdo->prepare('
+            SELECT sc.id FROM student_classes sc
+            JOIN classes c ON sc.class_id = c.id
+            WHERE sc.student_id = ? AND sc.class_id = ? AND c.user_email = ?
+        ');
+        $stmt->execute([$student_id, $class_id, $_SESSION['email']]);
+        $student = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$student) {
-        echo json_encode(['success' => false, 'message' => 'Student not found in this class or you do not have permission']);
-        exit();
+        if (!$student) {
+            echo json_encode(['success' => false, 'message' => 'Student not found in this class or you do not have permission']);
+            exit();
+        }
+    } else {
+        // Fallback: allow update if the student was created by this teacher
+        $stmt = $pdo->prepare('SELECT id FROM students WHERE id = ? AND teacher_email = ?');
+        $stmt->execute([$student_id, $_SESSION['email']]);
+        $student = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$student) {
+            echo json_encode(['success' => false, 'message' => 'Student not found or you do not have permission']);
+            exit();
+        }
     }
 
     // Check if student number is already taken by another student

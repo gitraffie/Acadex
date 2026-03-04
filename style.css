@@ -54,9 +54,10 @@
 }
 
 .notification-item {
+    position: relative;
     padding: 0.85rem 1rem;
     border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.06), rgba(255, 255, 255, 0));
+    background: linear-gradient(135deg, rgba(119, 140, 232, 0.234), rgba(255, 255, 255, 0.185));
     transition: background 0.2s ease;
     cursor: pointer;
 }
@@ -70,7 +71,19 @@
 }
 
 .notification-item.seen {
-    opacity: 0.7;
+    opacity: 0.5;
+}
+
+.notification-item:not(.seen)::after {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    right: 0.75rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3440e9;
+    box-shadow: 0 0 0 3px #fff;
 }
 
 .notification-title {

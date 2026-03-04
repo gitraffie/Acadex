@@ -557,6 +557,11 @@
             overflow-y: auto;
         }
 
+        /* Ensure SweetAlert is above the edit grades modal */
+        .swal2-container {
+            z-index: 3000 !important;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }

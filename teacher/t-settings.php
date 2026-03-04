@@ -214,6 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <?php
                                     $requestType = $request['request_type'] ?? 'grade';
                                     $term = $request['term'] ?? '';
+                                    $component = $request['grade_component'] ?? '';
                                     $termText = '';
                                     if ($requestType === 'grade') {
                                         if ($term === 'all') {
@@ -222,11 +223,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             $termText = ucfirst($term) . ' ';
                                         }
                                     }
+                                    $componentText = '';
+                                    if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                                        $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                                    }
                                     $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                                     $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                                     $description = $requestType === 'attendance'
                                         ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                                        : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                                        : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                                     ?>
                                     <div class="notification-item<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                                         data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -543,6 +548,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php
                         $requestType = $request['request_type'] ?? 'grade';
                         $term = $request['term'] ?? '';
+                        $component = $request['grade_component'] ?? '';
                         $termText = '';
                         if ($requestType === 'grade') {
                             if ($term === 'all') {
@@ -551,11 +557,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $termText = ucfirst($term) . ' ';
                             }
                         }
+                        $componentText = '';
+                        if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                            $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                        }
                         $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                         $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                         $description = $requestType === 'attendance'
                             ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                            : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-pending<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -578,6 +588,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php
                         $requestType = $request['request_type'] ?? 'grade';
                         $term = $request['term'] ?? '';
+                        $component = $request['grade_component'] ?? '';
                         $termText = '';
                         if ($requestType === 'grade') {
                             if ($term === 'all') {
@@ -586,11 +597,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $termText = ucfirst($term) . ' ';
                             }
                         }
+                        $componentText = '';
+                        if ($requestType === 'grade' && !empty($term) && $term !== 'all' && !empty($component)) {
+                            $componentText = $component === 'class_standing' ? '(Class Standing) ' : '(Exam) ';
+                        }
                         $classLabel = !empty($request['class_name']) ? ' for ' . $request['class_name'] : '';
                         $title = $requestType === 'attendance' ? 'Attendance Request' : 'Grade Request';
                         $description = $requestType === 'attendance'
                             ? $request['student_name'] . ' requested attendance records' . $classLabel . '.'
-                            : $request['student_name'] . ' requested ' . $termText . 'grades' . $classLabel . '.';
+                            : $request['student_name'] . ' requested ' . $termText . $componentText . 'grades' . $classLabel . '.';
                         ?>
                         <div class="request-item status-resolved<?php echo !empty($request['is_seen']) ? ' seen' : ''; ?>"
                             data-request-type="<?php echo htmlspecialchars($requestType); ?>"
@@ -677,7 +692,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 cancelButtonText: 'Cancel'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    window.location.href = '../auth/teacher-login.php';
+                    window.location.href = '../includes/logout.php?type=teacher';
                 }
             });
         }
@@ -716,7 +731,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'Your account has been deleted.',
                                 'success'
                             ).then(() => {
-                                window.location.href = '../auth/teacher-login.php';
+                                window.location.href = '../includes/logout.php?type=teacher';
                             });
                         }
                     });
@@ -886,6 +901,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </body>
 
 </html>
+
 
 
 
