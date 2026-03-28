@@ -56,6 +56,14 @@ try {
         throw new Exception('Exam score must be a number');
     }
 
+    // Normalize empty strings to NULL so they don't become 0 in the database
+    if ($class_standing === '') {
+        $class_standing = null;
+    }
+    if ($exam === '') {
+        $exam = null;
+    }
+
     // Get student_id from student_number
     $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ?");
     $stmt->execute([$student_number]);
@@ -98,17 +106,15 @@ try {
         ];
     }
 
-    // Calculate final grade for the current term using saved weights
-    $final_grade = 0;
-    if ($class_standing !== null && $class_standing !== '') {
-        $final_grade += (float)$class_standing * (float)$weights['class_standing'];
-    }
-    if ($exam !== null && $exam !== '') {
+    // Calculate final grade only if both components are provided and > 0
+    $has_class_standing = $class_standing !== null && $class_standing !== '';
+    $has_exam = $exam !== null && $exam !== '';
+    $final_grade = null;
+    if ($has_class_standing && $has_exam) {
+        $final_grade = (float)$class_standing * (float)$weights['class_standing'];
         $final_grade += (float)$exam * (float)$weights['exam'];
+        $final_grade = round($final_grade, 2);
     }
-
-    // Round to 2 decimal places
-    $final_grade = round($final_grade, 2);
 
     // Check if record exists in calculated_grades
     $stmt = $pdo->prepare("SELECT id FROM calculated_grades WHERE class_id = ? AND student_number = ?");
@@ -116,15 +122,27 @@ try {
     $existing = $stmt->fetch();
 
     if ($existing) {
-        // Update the specific column using prepared statement with safe column name
-        $sql = "UPDATE calculated_grades SET {$column} = ?, updated_at = NOW() WHERE class_id = ? AND student_number = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$final_grade, $class_id, $student_number]);
+        if ($final_grade === null) {
+            $sql = "UPDATE calculated_grades SET {$column} = NULL, updated_at = NOW() WHERE class_id = ? AND student_number = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$class_id, $student_number]);
+        } else {
+            // Update the specific column using prepared statement with safe column name
+            $sql = "UPDATE calculated_grades SET {$column} = ?, updated_at = NOW() WHERE class_id = ? AND student_number = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$final_grade, $class_id, $student_number]);
+        }
     } else {
-        // Insert new record with the specific column set
-        $sql = "INSERT INTO calculated_grades (class_id, teacher_email, student_number, {$column}, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$class_id, $teacher_email, $student_number, $final_grade]);
+        if ($final_grade === null) {
+            $sql = "INSERT INTO calculated_grades (class_id, teacher_email, student_number, {$column}, created_at, updated_at) VALUES (?, ?, ?, NULL, NOW(), NOW())";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$class_id, $teacher_email, $student_number]);
+        } else {
+            // Insert new record with the specific column set
+            $sql = "INSERT INTO calculated_grades (class_id, teacher_email, student_number, {$column}, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$class_id, $teacher_email, $student_number, $final_grade]);
+        }
     }
 
     // Commit transaction

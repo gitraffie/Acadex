@@ -174,9 +174,12 @@ try {
 
         //Calculate overall grade based on the term
         $gradesRow = $stmt->fetch();
-        $class_standing = $gradesRow['class_standing'] ?? 0;
-        $exam = $gradesRow['exam'] ?? 0;
-        $overallGrade = round(($class_standing * 0.7) + ($exam * 0.3), 2);
+        $class_standing = $gradesRow['class_standing'] ?? null;
+        $exam = $gradesRow['exam'] ?? null;
+        $overallGrade = null;
+        if ($class_standing !== null && $class_standing !== '' && $exam !== null && $exam !== '') {
+            $overallGrade = round(($class_standing * 0.7) + ($exam * 0.3), 2);
+        }
 
         //fetch the term column
         $termColumn = strtolower($assessment['term']);

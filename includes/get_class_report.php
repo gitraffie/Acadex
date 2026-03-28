@@ -71,7 +71,7 @@ try {
     $finals_count = 0;
 
     foreach ($grades as $grade) {
-        if ($grade['final_grade'] > 0) {
+        if ($grade['final_grade'] !== null && $grade['final_grade'] !== '') {
             $graded_students++;
             $total_final += $grade['final_grade'];
             if ($grade['final_grade'] >= 75) {
@@ -81,15 +81,15 @@ try {
             }
         }
 
-        if ($grade['prelim'] > 0) {
+        if ($grade['prelim'] !== null && $grade['prelim'] !== '') {
             $total_prelim += $grade['prelim'];
             $prelim_count++;
         }
-        if ($grade['midterm'] > 0) {
+        if ($grade['midterm'] !== null && $grade['midterm'] !== '') {
             $total_midterm += $grade['midterm'];
             $midterm_count++;
         }
-        if ($grade['finals'] > 0) {
+        if ($grade['finals'] !== null && $grade['finals'] !== '') {
             $total_finals += $grade['finals'];
             $finals_count++;
         }
@@ -114,7 +114,7 @@ try {
     $top_students = [];
 
     foreach ($grades as $grade) {
-        if ($grade['final_grade'] > 0) {
+        if ($grade['final_grade'] !== null && $grade['final_grade'] !== '') {
             $g = $grade['final_grade'];
             if ($g >= 90) {
                 $grade_ranges['90-100']++;

@@ -992,7 +992,7 @@ try {
                 tableBody.innerHTML = '';
                 grades.forEach(grade => {
                     const row = document.createElement('tr');
-                    const status = grade.status || 'No Grade';
+                    const status = grade.status || 'Incomplete';
                     let statusStyle = '';
                     if (status === 'Pass') {
                         statusStyle = 'background-color: #d4edda; color: #155724; padding: 0.25rem 0.5rem; border-radius: 4px;';

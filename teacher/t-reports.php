@@ -991,7 +991,7 @@ try {
         }
 
         function getGradeStatus(grade) {
-            if (!grade || grade === '--') return 'No Grade';
+            if (!grade || grade === '--') return 'Incomplete';
             if (grade >= 90) return 'Excellent';
             if (grade >= 80) return 'Good';
             if (grade >= 75) return 'Passing';

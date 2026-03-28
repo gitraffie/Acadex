@@ -40,7 +40,7 @@ try {
     $top_score = 0;
 
     foreach ($grades as $grade) {
-        if ($grade['final_grade'] > 0) {
+        if ($grade['final_grade'] !== null && $grade['final_grade'] !== '') {
             $total_final_grades += $grade['final_grade'];
             $valid_grades_count++;
 

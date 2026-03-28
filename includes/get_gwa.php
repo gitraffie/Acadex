@@ -100,15 +100,19 @@ try {
     // Calculate final grades for all students using weights
     $updated_grades = [];
     foreach ($results as $row) {
-        $prelim = $row['prelim'] ?? 0;
-        $midterm = $row['midterm'] ?? 0;
-        $finals = $row['finals'] ?? 0;
+        $prelim = $row['prelim'] ?? null;
+        $midterm = $row['midterm'] ?? null;
+        $finals = $row['finals'] ?? null;
 
-        // Calculate weighted final grade if all three terms have valid grades (> 0)
+        $hasPrelim = $prelim !== null && $prelim !== '';
+        $hasMidterm = $midterm !== null && $midterm !== '';
+        $hasFinals = $finals !== null && $finals !== '';
+
+        // Calculate weighted final grade if all three terms have valid grades (0 is valid)
         $overall_final_grade = 0;
-        if ($prelim > 0 && $midterm > 0 && $finals > 0) {
+        if ($hasPrelim && $hasMidterm && $hasFinals) {
             // Each term grade is already weighted (class_standing + exam), so we use equal weighting for terms
-            $overall_final_grade = round(($prelim + $midterm + $finals) / 3, 2);
+            $overall_final_grade = round((floatval($prelim) + floatval($midterm) + floatval($finals)) / 3, 2);
         }
 
         // Update the final_grade in database if it differs

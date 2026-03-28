@@ -337,9 +337,9 @@ try {
             <a href="t-reports.php" class="action-btn">
                 <div class="action-top">
                     <div class="action-icon"><i class="fas fa-chart-bar"></i></div>
-                    <div class="action-label">Generate Report</div>
+                    <div class="action-label">Class Analysis</div>
                 </div>
-                <div class="action-desc">Create summaries for performance and attendance.</div>
+                <div class="action-desc">View detailed analytics for your classes.</div>
             </a>
         </div>
 

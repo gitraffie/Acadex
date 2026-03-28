@@ -70,12 +70,14 @@ try {
     foreach ($gradeRecords as $record) {
         $student_number = $record['student_number'];
         $term = $record['term'];
-        $classStanding = floatval($record['class_standing']) ?: 0;
-        $exam = floatval($record['exam']) ?: 0;
+        $classStandingRaw = $record['class_standing'];
+        $examRaw = $record['exam'];
+        $classStanding = ($classStandingRaw === null || $classStandingRaw === '') ? null : floatval($classStandingRaw);
+        $exam = ($examRaw === null || $examRaw === '') ? null : floatval($examRaw);
 
-        // Calculate total grade using updated weights
-        $totalGrade = 0;
-        if ($classStanding > 0 || $exam > 0) {
+        // Calculate total grade only if both components are provided (0 is valid)
+        $totalGrade = null;
+        if ($classStanding !== null && $exam !== null) {
             $totalGrade = ($classStanding * $classStandingWeight) + ($exam * $examWeight);
         }
 
@@ -130,7 +132,7 @@ try {
                 $stmt->execute([$totalGrade, $class_id, $student_number]);
             } else {
                 // Insert new record
-                $values = ['prelim' => 0, 'midterm' => 0, 'finals' => 0];
+                $values = ['prelim' => null, 'midterm' => null, 'finals' => null];
                 $values[$termColumn] = $totalGrade;
 
                 $stmt = $pdo->prepare("
@@ -145,7 +147,7 @@ try {
                     $values['prelim'],
                     $values['midterm'],
                     $values['finals'],
-                    0
+                    null
                 ]);
             }
 

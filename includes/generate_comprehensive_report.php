@@ -188,7 +188,7 @@ function generateOverviewReport($pdo, $class_where, $class_params, $term_filter,
         FROM calculated_grades cg
         JOIN student_classes sc ON sc.class_id = cg.class_id
         JOIN students s ON cg.student_number = s.student_number AND sc.student_id = s.id
-        WHERE cg.final_grade > 0 $class_where
+        WHERE cg.final_grade IS NOT NULL $class_where
         GROUP BY
             CASE
                 WHEN cg.final_grade >= 90 THEN '90-100'
@@ -252,7 +252,7 @@ function generateGradesReport($pdo, $class_where, $class_params, $term_filter, $
             $grade_where = " AND cg.final_grade >= 70 AND cg.final_grade < 80";
             break;
         case 'Below 70 (At Risk)':
-            $grade_where = " AND cg.final_grade > 0 AND cg.final_grade < 70";
+            $grade_where = " AND cg.final_grade IS NOT NULL AND cg.final_grade < 70";
             break;
     }
 

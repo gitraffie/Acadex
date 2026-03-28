@@ -121,7 +121,7 @@ try {
     $calculated_grades = [];
     foreach ($results as $row) {
         $final_grade = $row['final_grade'];
-        $status = 'No Grade';
+        $status = 'Incomplete';
         if ($final_grade !== null && $final_grade !== '') {
             $status = ($final_grade >= 75) ? 'Pass' : 'Fail';
         }

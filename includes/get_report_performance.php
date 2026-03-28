@@ -41,10 +41,10 @@ try {
             'id' => $student['id'],
             'student_number' => $student['student_number'],
             'name' => $student['name'],
-            'prelim' => $student['prelim'] ? number_format($student['prelim'], 2) : '--',
-            'midterm' => $student['midterm'] ? number_format($student['midterm'], 2) : '--',
-            'finals' => $student['finals'] ? number_format($student['finals'], 2) : '--',
-            'final_grade' => $student['final_grade'] ? number_format($student['final_grade'], 2) : '--'
+            'prelim' => ($student['prelim'] !== null && $student['prelim'] !== '') ? number_format($student['prelim'], 2) : '--',
+            'midterm' => ($student['midterm'] !== null && $student['midterm'] !== '') ? number_format($student['midterm'], 2) : '--',
+            'finals' => ($student['finals'] !== null && $student['finals'] !== '') ? number_format($student['finals'], 2) : '--',
+            'final_grade' => ($student['final_grade'] !== null && $student['final_grade'] !== '') ? number_format($student['final_grade'], 2) : '--'
         ];
     }, $students);
 

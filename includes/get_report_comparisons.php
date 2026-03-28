@@ -24,7 +24,7 @@ try {
             AVG(midterm) as current_midterm_avg,
             AVG(finals) as current_finals_avg
         FROM calculated_grades
-        WHERE class_id = ? AND prelim > 0 AND midterm > 0 AND finals > 0
+        WHERE class_id = ? AND prelim IS NOT NULL AND midterm IS NOT NULL AND finals IS NOT NULL
     ");
     $stmt->execute([$class_id]);
     $current_averages = $stmt->fetch(PDO::FETCH_ASSOC);

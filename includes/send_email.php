@@ -131,7 +131,7 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
     // Add the final grade row
     $rows .= "
         <tr>
-            <td colspan='2'><strong>Final Grade</strong></td>
+            <td colspan='2'><strong>Average</strong></td>
             <td><strong>$total_grade</strong></td>
         </tr>
     ";
@@ -166,7 +166,6 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
             $rows
         </table>
 
-        <p>Best regards,<br>{$teacher_name}</p>
         </body></html>
         ";
 
@@ -244,7 +243,6 @@ function emailSpecificGrade($student_email, $student_name, $class_id, $student_n
         </tr>
     </table>
 
-    <p>Best regards,<br>{$teacher_name}</p>
     </body></html>
     ";
 
@@ -376,11 +374,11 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
             <td>{$grades_data['finals']['term_grade']}</td>
         </tr>
         <tr>
-            <td colspan='3'><strong>Final Grade</strong></td>
+            <td colspan='3'><strong>Average</strong></td>
             <td><strong>{$grades_data['final_grade']}</strong></td>
         </tr>
     </table>
-    <p>Best regards,<br>{$teacher_name}</p>
+
     </body></html>
     ";
 
@@ -440,7 +438,6 @@ function emailAttendance($student_email, $student_name, $date, $session, $status
             " . ($status == 'present' ? 'You were marked as <strong>Present</strong>.' : ($status == 'absent' ? 'You were marked as <strong>Absent</strong>.' : ($status == 'late' ? 'You were marked as <strong>Late</strong>.' : 'You were marked as <strong>Excused</strong>.'))) . "
         </div>
 
-        <p>Best regards,<br>{$teacher_name}</p>
         </body></html>
         ";
 
@@ -535,7 +532,6 @@ function emailAttendanceHistory($student_email, $student_name, $records, $pdo, $
             {$rows}
         </table>
 
-        <p>Best regards,<br>{$teacher_name}</p>
         </body></html>
     ";
 

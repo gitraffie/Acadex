@@ -85,7 +85,7 @@ try {
     ];
 
     foreach ($grades as $grade) {
-        if ($grade['final_grade'] > 0) {
+        if ($grade['final_grade'] !== null && $grade['final_grade'] !== '') {
             $total_grades += $grade['final_grade'];
             $grade_count++;
 

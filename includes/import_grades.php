@@ -211,7 +211,7 @@ function importSpecificTerm($pdo, $class_id, $term, $data, &$errors) {
             // 2. Calculate the single term grade using saved weights
             $term_grade_val = round(($class_standing * (float)$weights['class_standing']) + ($exam * (float)$weights['exam']), 2);
 
-            // 3. Update the specific column in 'calculated_grades' only if student already exists
+            // 3. Upsert the specific column in 'calculated_grades'
             // Check if student exists in calculated_grades first
             $checkStmt = $pdo->prepare("SELECT id FROM calculated_grades WHERE class_id = ? AND student_number = ?");
             $checkStmt->execute([$class_id, $student_number]);
@@ -224,8 +224,14 @@ function importSpecificTerm($pdo, $class_id, $term, $data, &$errors) {
                     WHERE class_id = ? AND student_number = ?
                 ");
                 $stmt->execute([$term_grade_val, $class_id, $student_number]);
+            } else {
+                // Student doesn't exist, create a new calculated_grades row for this term
+                $stmt = $pdo->prepare("
+                    INSERT INTO calculated_grades (class_id, teacher_email, student_number, $db_col, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, NOW(), NOW())
+                ");
+                $stmt->execute([$class_id, $teacher_email, $student_number, $term_grade_val]);
             }
-            // If student doesn't exist in calculated_grades, skip updating (no new record created)
 
             // 4. Update the Final GWA (Average of all 3 terms)
             updateStudentGWA($pdo, $class_id, $student_number);

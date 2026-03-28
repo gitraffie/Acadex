@@ -196,7 +196,7 @@ try {
                     </select>
                 </div>
                 <div class="grade-actions">
-                    <button class="grade-btn" onclick="openImportGradesModal()" title="Import grades from CSV or XLSX file">
+                    <button class="grade-btn" id="importGradesBtn" onclick="openImportGradesModal()" title="Import grades from CSV or Excel file" style="display: none;">
                         <i class="fas fa-upload" style="color: white;"></i> <span style="color: white;">Import Grades</span>
                     </button>
                 </div>
@@ -281,7 +281,7 @@ try {
                                         <th>Prelim</th>
                                         <th>Midterm</th>
                                         <th>Finals</th>
-                                        <th>Final Grade</th>
+                                        <th>GWA</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -939,7 +939,7 @@ try {
                 if (result.success) {
                     showResults(result);
                     
-                    // Trigger recalculation for specific term imports
+                    // Trigger recalculation for specific term imports and wait before refreshing UI
                     if (mode === 'specific_term') {
                         console.log('Triggering grade recalculation after specific term import...');
                         try {
@@ -962,7 +962,7 @@ try {
                         }
                     }
                     
-                    await loadClassGrades(); // Reload the grade table
+                    await loadClassGrades(true); // Reload the grade table and stats after import
                 } else {
                     throw new Error(result.message || 'Import failed');
                 }
@@ -1042,6 +1042,21 @@ try {
         // Call the truncate function on page load
         truncateUserInfo();
 
+        function updateImportButtonVisibility(classId = null) {
+            const importBtn = document.getElementById('importGradesBtn');
+            if (!importBtn) {
+                return;
+            }
+            let hasClass = false;
+            if (classId !== null) {
+                hasClass = Boolean(classId);
+            } else {
+                const classSelector = document.getElementById('classSelector');
+                hasClass = Boolean(classSelector && classSelector.value);
+            }
+            importBtn.style.display = hasClass ? '' : 'none';
+        }
+
         async function initFromNotification() {
             const params = new URLSearchParams(window.location.search);
             const classId = params.get('class_id');
@@ -1071,7 +1086,10 @@ try {
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
-        document.addEventListener('DOMContentLoaded', initFromNotification);
+        document.addEventListener('DOMContentLoaded', () => {
+            updateImportButtonVisibility();
+            initFromNotification();
+        });
 
         // Grade weights for calculation (will be loaded from server)
         let weights = {
@@ -1143,10 +1161,11 @@ try {
         let currentEmailStudentGrades = {};
         let currentTotalGrade = 0;
 
-        async function loadClassGrades() {
+        async function loadClassGrades(preservePage = false) {
             const classSelector = document.getElementById('classSelector');
             const classId = classSelector.value;
-            
+
+            updateImportButtonVisibility(classId);
             if (!classId) {
                 document.getElementById('noClassSelected').style.display = 'block';
                 document.getElementById('gradeManagementContent').style.display = 'none';
@@ -1264,10 +1283,10 @@ try {
                             currentCalculatedGrades = {};
                             calGradesData.calculated_grades.forEach(grade => {
                                 currentCalculatedGrades[grade.student_number] = {
-                                    prelim: grade.prelim || 0,
-                                    midterm: grade.midterm || 0,
-                                    finals: grade.finals || 0,
-                                    final_grade: grade.final_grade || 0
+                                    prelim: grade.prelim ?? '',
+                                    midterm: grade.midterm ?? '',
+                                    finals: grade.finals ?? '',
+                                    final_grade: grade.final_grade ?? ''
                                 };
                             });
                             console.log('Loaded calculated grades:', currentCalculatedGrades);
@@ -1287,7 +1306,7 @@ try {
                 // Render grade table
                 console.log('Rendering grade table...');
                 filteredStudents = [...currentStudents];
-                filterStudents();
+                filterStudents(preservePage);
 
                 // Update statistics
                 console.log('Updating statistics...');
@@ -1309,6 +1328,17 @@ try {
             const middle = student.middle_initial ? ` ${student.middle_initial}.` : '';
             const suffix = student.suffix ? ` ${student.suffix}` : '';
             return `${student.last_name}, ${student.first_name}${middle}${suffix}`;
+        }
+
+        function formatTermGradeDisplay(value) {
+            if (value === null || value === undefined || value === '') {
+                return 'Incomplete';
+            }
+            const numeric = parseFloat(value);
+            if (Number.isNaN(numeric)) {
+                return 'Incomplete';
+            }
+            return numeric.toFixed(2);
         }
 
         function renderGradeTable(students, gradesMap = {}, calculatedGrades = {}) {
@@ -1337,10 +1367,10 @@ try {
 
             tableBody.innerHTML = pageStudents.map(student => {
                 const studentCalGrades = calculatedGrades[student.student_number] || {};
-                const prelim = studentCalGrades.prelim || 0;
-                const midterm = studentCalGrades.midterm || 0;
-                const finals = studentCalGrades.finals || 0;
-                const finalGrade = studentCalGrades.final_grade || 0;
+                const prelim = studentCalGrades.prelim ?? '';
+                const midterm = studentCalGrades.midterm ?? '';
+                const finals = studentCalGrades.finals ?? '';
+                const finalGrade = studentCalGrades.final_grade ?? '';
                 return `
                     <tr data-student-id="${student.id}">
                         <td>
@@ -1349,10 +1379,10 @@ try {
                                 <div class="student-number">${student.student_number}</div>
                             </div>
                         </td>
-                        <td>${prelim === 0 ? '--' : parseFloat(prelim).toFixed(2)}</td> <!-- Prelim -->
-                        <td>${midterm === 0 ? '--' : parseFloat(midterm).toFixed(2)}</td> <!-- Midterm -->
-                        <td>${finals === 0 ? '--' : parseFloat(finals).toFixed(2)}</td> <!-- Finals -->
-                        <td class="final-grade">${finalGrade === 0 ? '--' : parseFloat(finalGrade).toFixed(2)}</td>
+                        <td class="grade-term-cell" style="cursor: pointer;" onclick="editStudentGrades(${student.id}, 'prelim')" title="Edit Prelim grades">${formatTermGradeDisplay(prelim)}</td> <!-- Prelim -->
+                        <td class="grade-term-cell" style="cursor: pointer;" onclick="editStudentGrades(${student.id}, 'midterm')" title="Edit Midterm grades">${formatTermGradeDisplay(midterm)}</td> <!-- Midterm -->
+                        <td class="grade-term-cell" style="cursor: pointer;" onclick="editStudentGrades(${student.id}, 'finals')" title="Edit Finals grades">${formatTermGradeDisplay(finals)}</td> <!-- Finals -->
+                        <td class="final-grade">${formatTermGradeDisplay(finalGrade)}</td>
                         <td class="grade-actions-cell">
                             <button class="grade-action-btn edit" onclick="editStudentGrades(${student.id})">Edit</button>
                             <button class="grade-action-btn get-gwa" onclick="getGWA(${student.id})">Get GWA</button>
@@ -1368,15 +1398,15 @@ try {
         }
 
         function calculateFinalGrade(grades) {
-            let total = 0;
-            let totalWeight = 0;
-            for (const [key, weight] of Object.entries(weights)) {
-                if (grades[key] !== undefined && grades[key] !== null && grades[key] !== '') {
-                    total += parseFloat(grades[key]) * weight;
-                    totalWeight += weight;
-                }
+            const classStanding = grades?.class_standing ?? grades?.classStanding ?? grades?.classStandingScore;
+            const exam = grades?.exam ?? grades?.examScore;
+            const hasClassStanding = classStanding !== null && classStanding !== undefined && classStanding !== '' && !Number.isNaN(parseFloat(classStanding));
+            const hasExam = exam !== null && exam !== undefined && exam !== '' && !Number.isNaN(parseFloat(exam));
+            if (!hasClassStanding || !hasExam) {
+                return 'Incomplete';
             }
-            return totalWeight > 0 ? Math.round(total / totalWeight) : 0;
+            const total = (parseFloat(classStanding) * weights.class_standing) + (parseFloat(exam) * weights.exam);
+            return Math.round(total);
         }
 
         function updateGrade(studentId, value) {
@@ -1385,7 +1415,8 @@ try {
                 const row = document.querySelector(`tr:has(button[onclick*="saveStudentGrades(${studentId})"])`);
                 if (row) {
                     const finalGradeCell = row.querySelector('.final-grade');
-                    finalGradeCell.textContent = calculateFinalGrade(student.grades) + '%';
+                    const calculated = calculateFinalGrade(student.grades);
+                    finalGradeCell.textContent = calculated === 'Incomplete' ? calculated : calculated + '%';
                 }
             }
         }
@@ -1403,12 +1434,13 @@ try {
             const totalStudents = currentStudents.length;
             const gradedStudents = currentStudents.filter(student => {
                 const studentCalGrades = currentCalculatedGrades[student.student_number] || {};
-                return studentCalGrades.final_grade > 0;
+                return studentCalGrades.final_grade !== null && studentCalGrades.final_grade !== undefined && studentCalGrades.final_grade !== '';
             }).length;
             const averageGrade = gradedStudents > 0 ?
                 parseFloat((currentStudents.reduce((sum, student) => {
                     const studentCalGrades = currentCalculatedGrades[student.student_number] || {};
-                    return sum + (studentCalGrades.final_grade || 0);
+                    const fg = studentCalGrades.final_grade;
+                    return sum + (fg !== null && fg !== undefined && fg !== '' ? parseFloat(fg) : 0);
                 }, 0) / gradedStudents).toFixed(2)) : 0;
 
             document.getElementById('totalStudents').textContent = totalStudents;
@@ -1514,7 +1546,7 @@ try {
         }
 
         // Updated editStudentGrades function - handles array response format
-        async function editStudentGrades(studentId) {
+        async function editStudentGrades(studentId, preselectTerm = 'prelim') {
             const student = currentStudents.find(s => s.id == studentId);
             if (!student) {
                 alert('Student not found.');
@@ -1567,9 +1599,10 @@ try {
                     };
                 }
 
-                // Get grades for the current term (default to prelim)
-                let termGrades = getTermGrades("prelim");
-                console.log('Found grades for term: prelim', termGrades);
+                // Get grades for the current term (default to preselectTerm)
+                const safePreselectTerm = ['prelim', 'midterm', 'finals'].includes(preselectTerm) ? preselectTerm : 'prelim';
+                let termGrades = getTermGrades(safePreselectTerm);
+                console.log(`Found grades for term: ${safePreselectTerm}`, termGrades);
 
                 // Convert weights from decimals to percentages for display
                 const classStandingPercent = (weights.class_standing * 100).toFixed(1);
@@ -1588,9 +1621,9 @@ try {
                             <div class="form-group">
                                 <label for="term">Term</label>
                                 <select id="term" name="term" class="grade-input" required>
-                                    <option value="prelim" selected>Prelim</option>
-                                    <option value="midterm">Midterm</option>
-                                    <option value="finals">Finals</option>
+                                    <option value="prelim" ${safePreselectTerm === 'prelim' ? 'selected' : ''}>Prelim</option>
+                                    <option value="midterm" ${safePreselectTerm === 'midterm' ? 'selected' : ''}>Midterm</option>
+                                    <option value="finals" ${safePreselectTerm === 'finals' ? 'selected' : ''}>Finals</option>
                                 </select>
                             </div>
                         </div>
@@ -1620,8 +1653,22 @@ try {
                 document.getElementById('editGradesContent').innerHTML = formHtml;
                 document.getElementById('editGradesModal').style.display = 'block';
 
+                function normalizeGradeValue(value) {
+                    if (value === null || value === undefined) return '';
+                    return String(value).trim();
+                }
+
+                function isCurrentTermDirty(termKey) {
+                    const saved = allStudentGrades[termKey] || { class_standing: '', exam: '' };
+                    const currentClassStanding = normalizeGradeValue(document.getElementById('class_standing')?.value);
+                    const currentExam = normalizeGradeValue(document.getElementById('exam')?.value);
+                    const savedClassStanding = normalizeGradeValue(saved.class_standing);
+                    const savedExam = normalizeGradeValue(saved.exam);
+                    return currentClassStanding !== savedClassStanding || currentExam !== savedExam;
+                }
+
                 // Track current term and dirty state for auto-save on term switch
-                let currentEditTerm = 'prelim';
+                let currentEditTerm = safePreselectTerm;
                 let hasUnsavedChanges = false;
                 let isAutoSaving = false;
 
@@ -1629,7 +1676,7 @@ try {
                 const inputs = document.querySelectorAll('#gradeEditForm .grade-input');
                 inputs.forEach(input => {
                     input.addEventListener('input', () => {
-                        hasUnsavedChanges = true;
+                        hasUnsavedChanges = isCurrentTermDirty(currentEditTerm);
                         updateCalculatedGradeDisplay();
                     });
                 });
@@ -1698,11 +1745,8 @@ try {
                         return;
                     }
 
-                    const classStandingValue = document.getElementById('class_standing')?.value || '';
-                    const examValue = document.getElementById('exam')?.value || '';
-                    const hasValues = classStandingValue !== '' || examValue !== '';
-
-                    if (hasUnsavedChanges && hasValues) {
+                    hasUnsavedChanges = isCurrentTermDirty(currentEditTerm);
+                    if (hasUnsavedChanges) {
                         const result = await Swal.fire({
                             title: 'Save changes?',
                             text: 'You have unsaved grades for this term. Save before switching?',
@@ -1745,20 +1789,12 @@ try {
 
         // Helper function to calculate grade
         function calculateGrade(classStanding, exam) {
-            let total = 0;
-            let count = 0;
-
-            if (classStanding && classStanding !== '') {
-                total += parseFloat(classStanding) * weights.class_standing;
-                count++;
+            const hasClassStanding = classStanding !== null && classStanding !== undefined && classStanding !== '' && !Number.isNaN(parseFloat(classStanding));
+            const hasExam = exam !== null && exam !== undefined && exam !== '' && !Number.isNaN(parseFloat(exam));
+            if (!hasClassStanding || !hasExam) {
+                return 'Incomplete';
             }
-            if (exam && exam !== '') {
-                total += parseFloat(exam) * weights.exam;
-                count++;
-            }
-
-            if (count === 0) return '--';
-
+            const total = (parseFloat(classStanding) * weights.class_standing) + (parseFloat(exam) * weights.exam);
             return total.toFixed(2);
         }
 
@@ -1786,7 +1822,7 @@ try {
                 final: parseFloat(form.final.value) || 0
             };
             const calculatedGrade = calculateFinalGrade(grades);
-            document.getElementById('calculatedGrade').textContent = calculatedGrade + '%';
+            document.getElementById('calculatedGrade').textContent = calculatedGrade === 'Incomplete' ? calculatedGrade : calculatedGrade + '%';
         }
 
         async function saveStudentGrades(studentId) {
@@ -1865,10 +1901,10 @@ try {
                                 currentCalculatedGrades = {};
                                 calGradesData.calculated_grades.forEach(grade => {
                                     currentCalculatedGrades[grade.student_number] = {
-                                        prelim: grade.prelim || 0,
-                                        midterm: grade.midterm || 0,
-                                        finals: grade.finals || 0,
-                                        final_grade: grade.final_grade || 0
+                                        prelim: grade.prelim ?? '',
+                                        midterm: grade.midterm ?? '',
+                                        finals: grade.finals ?? '',
+                                        final_grade: grade.final_grade ?? ''
                                     };
                                 });
                                 console.log('Updated calculated grades:', currentCalculatedGrades);
@@ -1884,7 +1920,7 @@ try {
                     closeEditGradesModal();
 
                     // Re-render with updated data
-                    filterStudents();
+                    filterStudents(true);
                     updateStatistics();
 
                 } else {
@@ -1942,15 +1978,15 @@ try {
                                     currentCalculatedGrades = {};
                                     calGradesData.calculated_grades.forEach(grade => {
                                         currentCalculatedGrades[grade.student_number] = {
-                                            prelim: grade.prelim || 0,
-                                            midterm: grade.midterm || 0,
-                                            finals: grade.finals || 0,
-                                            final_grade: grade.final_grade || 0
+                                            prelim: grade.prelim ?? '',
+                                            midterm: grade.midterm ?? '',
+                                            finals: grade.finals ?? '',
+                                            final_grade: grade.final_grade ?? ''
                                         };
                                     });
 
                                     // Re-render table with updated final grades
-                                    filterStudents();
+                                    filterStudents(true);
                                     updateStatistics();
 
                                     // Show GWA summary in modal
@@ -2649,28 +2685,31 @@ try {
         }
 
         // Filter students based on search and grade filter
-        function filterStudents() {
+        function filterStudents(preservePage = false) {
             const searchInput = document.getElementById('studentSearch').value.toLowerCase();
             const filterValue = document.getElementById('gradeFilter').value;
 
             filteredStudents = currentStudents.filter(student => {
                 const name = formatStudentName(student).toLowerCase();
                 const number = String(student.student_number || '').toLowerCase();
-                const finalGrade = parseFloat((currentCalculatedGrades[student.student_number]?.final_grade) || 0);
+                const finalGradeRaw = currentCalculatedGrades[student.student_number]?.final_grade;
+                const finalGrade = finalGradeRaw === null || finalGradeRaw === undefined || finalGradeRaw === '' ? null : parseFloat(finalGradeRaw);
 
                 if (searchInput && !name.includes(searchInput) && !number.includes(searchInput)) {
                     return false;
                 }
 
-                if (filterValue === 'graded' && finalGrade === 0) return false;
-                if (filterValue === 'ungraded' && finalGrade > 0) return false;
-                if (filterValue === 'passing' && finalGrade < 75) return false;
-                if (filterValue === 'failing' && finalGrade >= 75) return false;
+                if (filterValue === 'graded' && finalGrade === null) return false;
+                if (filterValue === 'ungraded' && finalGrade !== null) return false;
+                if (filterValue === 'passing' && (finalGrade === null || finalGrade < 75)) return false;
+                if (filterValue === 'failing' && finalGrade !== null && finalGrade >= 75) return false;
 
                 return true;
             });
 
-            currentPage = 1;
+            if (!preservePage) {
+                currentPage = 1;
+            }
             renderGradeTable(filteredStudents, currentGradesMap, currentCalculatedGrades);
         }
 
@@ -3268,7 +3307,7 @@ try {
                     console.log(`Successfully recalculated grades for ${result.students_updated} students`);
                     
                     // Reload all class data including calculated grades
-                    await loadClassGrades();
+                    await loadClassGrades(true);
                     
                     alert(`Grade recalculation completed! Updated ${result.students_updated} student records.`);
                 } else {
