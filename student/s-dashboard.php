@@ -21,6 +21,22 @@ $term = 'N/A';
 $teacherEmail = 'N/A';
 $enrolledClasses = [];
 
+function formatTermValue($value) {
+    if ($value === null || $value === '' || !is_numeric($value)) {
+        return '0.00';
+    }
+    return number_format((float)$value, 2);
+}
+
+function resolveTermRemark($value) {
+    if ($value === null || $value === '' || !is_numeric($value) || floatval($value) == 0.0) {
+        return ['label' => 'Incomplete', 'class' => 'incomplete'];
+    }
+    return floatval($value) >= 75
+        ? ['label' => 'Passed', 'class' => 'passed']
+        : ['label' => 'Failed', 'class' => 'failed'];
+}
+
 // Fetch student complete information
 try {
     $stmt = $pdo->prepare("SELECT * FROM students WHERE id = ?");
@@ -242,6 +258,29 @@ try {
 
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../css/student/s-dashboard.css">
+    <style>
+        .grade-remark {
+            display: inline-block;
+            margin-left: 0.5rem;
+            padding: 0.1rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        .grade-remark.passed {
+            background: #e6f6ec;
+            color: #1e7a3f;
+        }
+        .grade-remark.failed {
+            background: #fdecea;
+            color: #b42318;
+        }
+        .grade-remark.incomplete {
+            background: #f2f4f7;
+            color: #475467;
+        }
+    </style>
 </head>
 
 <body>
@@ -453,21 +492,45 @@ try {
                                     <th>Prelim</th>
                                     <th>Midterm</th>
                                     <th>Finals</th>
-                                    <th>Final Grade</th>
-                                    <th>Recorded</th>
+                                    <th>Average</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($gradeEntries as $entry): ?>
+                                    <?php
+                                    $prelimRemark = resolveTermRemark($entry['prelim'] ?? null);
+                                    $midtermRemark = resolveTermRemark($entry['midterm'] ?? null);
+                                    $finalsRemark = resolveTermRemark($entry['finals'] ?? null);
+                                    $finalRemark = resolveTermRemark($entry['final_grade'] ?? null);
+                                    ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($entry['class_name'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($entry['section'] ?? 'N/A'); ?></td>
                                         <td><?php echo htmlspecialchars($entry['term'] ?? 'N/A'); ?></td>
-                                        <td><?php echo $entry['prelim'] !== null ? number_format($entry['prelim'], 2) : '--'; ?></td>
-                                        <td><?php echo $entry['midterm'] !== null ? number_format($entry['midterm'], 2) : '--'; ?></td>
-                                        <td><?php echo $entry['finals'] !== null ? number_format($entry['finals'], 2) : '--'; ?></td>
-                                        <td style="font-weight: 700;"><?php echo $entry['final_grade'] !== null ? number_format($entry['final_grade'], 2) : '--'; ?></td>
-                                        <td><?php echo !empty($entry['created_at']) ? date('M d, Y', strtotime($entry['created_at'])) : '—'; ?></td>
+                                        <td>
+                                            <?php echo formatTermValue($entry['prelim'] ?? null); ?>
+                                            <span class="grade-remark <?php echo $prelimRemark['class']; ?>">
+                                                <?php echo $prelimRemark['label']; ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?php echo formatTermValue($entry['midterm'] ?? null); ?>
+                                            <span class="grade-remark <?php echo $midtermRemark['class']; ?>">
+                                                <?php echo $midtermRemark['label']; ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?php echo formatTermValue($entry['finals'] ?? null); ?>
+                                            <span class="grade-remark <?php echo $finalsRemark['class']; ?>">
+                                                <?php echo $finalsRemark['label']; ?>
+                                            </span>
+                                        </td>
+                                        <td style="font-weight: 700;">
+                                            <?php echo formatTermValue($entry['final_grade'] ?? null); ?>
+                                            <span class="grade-remark <?php echo $finalRemark['class']; ?>">
+                                                <?php echo $finalRemark['label']; ?>
+                                            </span>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -728,3 +791,4 @@ try {
 </body>
 
 </html>
+

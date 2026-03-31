@@ -215,6 +215,7 @@ try {
                             </div>
                             <div class="class-actions">
                                 <button class="class-action-btn archive-btn" onclick="archiveClass(<?php echo $class['id']; ?>)" data-tooltip="Archive class" aria-label="Archive class"><i class="fas fa-archive"></i></button>
+                                <button class="class-action-btn delete-btn" onclick="deleteClass(<?php echo $class['id']; ?>)" data-tooltip="Delete class" aria-label="Delete class"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                     </div>
@@ -313,9 +314,14 @@ try {
             <div id="students" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h3>Student List</h3>
-                    <button class="btn btn-primary" onclick="openAddStudentModal()" data-tooltip="Add Students" aria-label="Add Students">
-                        <i class="fas fa-plus"></i>
-                    </button>
+                    <div style="display: inline-flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="removeAllStudents()" data-tooltip="Remove All Students" aria-label="Remove All Students">
+                            <i class="fas fa-user-minus"></i> Remove All Students
+                        </button>
+                        <button class="btn btn-primary" onclick="openAddStudentModal()" data-tooltip="Add Students" aria-label="Add Students">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
                 <table class="student-table" id="studentTable">
                     <thead>
@@ -504,8 +510,8 @@ try {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="middleInitial">Middle Initial</label>
-                            <input type="text" id="middleInitial" name="middleInitial" maxlength="1" placeholder="Enter middle initial">
+                            <label for="middleInitial">Middle Name</label>
+                            <input type="text" id="middleInitial" name="middleInitial" maxlength="50" placeholder="Enter middle name">
                         </div>
                         <div class="form-group">
                             <label for="suffix">Suffix</label>
@@ -585,8 +591,8 @@ try {
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="editMiddleInitial">Middle Initial</label>
-                        <input type="text" id="editMiddleInitial" name="middle_initial" maxlength="1" placeholder="Enter middle initial">
+                        <label for="editMiddleInitial">Middle Name</label>
+                        <input type="text" id="editMiddleInitial" name="middle_initial" maxlength="50" placeholder="Enter middle name">
                     </div>
                     <div class="form-group">
                         <label for="editSuffix">Suffix</label>
@@ -954,9 +960,13 @@ try {
                             tableBody.innerHTML = '';
                             data.students.forEach(student => {
                                 const row = document.createElement('tr');
+                                const middleInitial = student.middle_initial ? String(student.middle_initial).trim().charAt(0).toUpperCase() : '';
+                                const lastName = (student.last_name || '').toUpperCase();
+                                const firstName = (student.first_name || '').toUpperCase();
+                                const suffix = (student.suffix || '').toUpperCase();
                                 row.innerHTML = '<td class="student-number">' + student.student_number + '</td>' +
                                     '<td class="student-name">' +
-                                        student.last_name + ', ' + student.first_name + ' ' + (student.middle_initial ? student.middle_initial + '.' : '') + ' ' + (student.suffix || '') +
+                                        lastName + ', ' + firstName + ' ' + (middleInitial ? middleInitial + '.' : '') + ' ' + (suffix || '') +
                                         '<div>' +
                                             '<small class="student-email">' + student.student_email + '</small>' +
                                         '</div>' +
@@ -1001,8 +1011,9 @@ try {
                     } else {
                         statusStyle = 'background-color: #e2e3e5; color: #383d41; padding: 0.25rem 0.5rem; border-radius: 4px;';
                     }
+                    const studentName = (grade.student_name || '').toUpperCase();
                     row.innerHTML = `
-                        <td class="student-name">${grade.student_name}</td>
+                        <td class="student-name">${studentName}</td>
                         <td>${grade.prelim || '-'}</td>
                         <td>${grade.midterm || '-'}</td>
                         <td>${grade.finals || '-'}</td>
@@ -1234,14 +1245,18 @@ try {
                 .then(data => {
                     if (data.success) {
                         const student = data.student;
+                        const firstName = (student.first_name || '').toUpperCase();
+                        const lastName = (student.last_name || '').toUpperCase();
+                        const middleName = (student.middle_initial || '').toUpperCase();
+                        const suffix = (student.suffix || '').toUpperCase();
                         // Populate the edit form
                         document.getElementById('editStudentId').value = student.id;
                         document.getElementById('editStudentNumber').value = student.student_number;
                         document.getElementById('editEmail').value = student.student_email;
-                        document.getElementById('editFirstName').value = student.first_name;
-                        document.getElementById('editLastName').value = student.last_name;
-                        document.getElementById('editMiddleInitial').value = student.middle_initial || '';
-                        document.getElementById('editSuffix').value = student.suffix || '';
+                        document.getElementById('editFirstName').value = firstName;
+                        document.getElementById('editLastName').value = lastName;
+                        document.getElementById('editMiddleInitial').value = middleName;
+                        document.getElementById('editSuffix').value = suffix;
                         document.getElementById('editProgram').value = student.program;
                         // Open the modal
                         document.getElementById('editStudentModal').style.display = 'block';
@@ -1287,6 +1302,38 @@ try {
                 });
         }
 
+        // Bulk remove all students from the selected class
+        function removeAllStudents() {
+            const classId = document.getElementById('selectedClassSection').getAttribute('data-class-id');
+            if (!classId) return;
+
+            confirmAction('This will unenroll all students from this class. Continue?', { confirmText: 'Remove All' })
+                .then((confirmed) => {
+                    if (!confirmed) return;
+                    const formData = new FormData();
+                    formData.append('class_id', classId);
+
+                    fetch('../includes/remove_all_students_from_class.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Success', data.message, 'success');
+                            loadStudents();
+                            loadStudentCounts();
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire('Error', 'An error occurred while removing students.', 'error');
+                    });
+                });
+        }
+
         // Edit Student Modal functions
         function closeEditStudentModal() {
             document.getElementById('editStudentModal').style.display = 'none';
@@ -1321,8 +1368,35 @@ try {
             });
         });
 
+        function bindUppercaseInput(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            input.addEventListener('input', () => {
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                input.value = input.value.toUpperCase();
+                if (start !== null && end !== null) {
+                    input.setSelectionRange(start, end);
+                }
+            });
+        }
+
+        function initNameAutoUppercase() {
+            [
+                'firstName',
+                'lastName',
+                'middleInitial',
+                'suffix',
+                'editFirstName',
+                'editLastName',
+                'editMiddleInitial',
+                'editSuffix'
+            ].forEach(bindUppercaseInput);
+        }
+
         // Add click event listeners to class cards
         document.addEventListener('DOMContentLoaded', function() {
+            initNameAutoUppercase();
             const classCards = document.querySelectorAll('.class-card');
             classCards.forEach(card => {
                 card.addEventListener('click', function(e) {
@@ -1535,8 +1609,8 @@ try {
                         data.forEach(classData => {
                             const classCards = document.querySelectorAll('.class-card');
                             classCards.forEach(card => {
-                                const className = card.getAttribute('data-class-name');
-                                if (className === classData.class_name) {
+                            const classId = card.getAttribute('data-class-id');
+                            if (String(classId) === String(classData.id)) {
                                     const statValues = card.querySelectorAll('.class-stat-value');
                                     if (statValues.length >= 2) {
                                         // First stat: student count
@@ -1613,11 +1687,12 @@ try {
                                                 <div class="class-stat-label">Attendance</div>
                                             </div>
                                         </div>
-                                        <div class="class-actions">
-                                            <button class="class-action-btn unarchive-btn" onclick="unarchiveClass(${classItem.id})"><i class="fas fa-box-open"></i> Unarchive</button>
+                                            <div class="class-actions">
+                                                <button class="class-action-btn unarchive-btn" onclick="unarchiveClass(${classItem.id})"><i class="fas fa-box-open"></i> Unarchive</button>
+                                                <button class="class-action-btn delete-btn" onclick="deleteClass(${classItem.id})"><i class="fas fa-trash"></i> Delete</button>
+                                            </div>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
                                 // Set gray gradient background for archived class banner
                                 const classBanner = classCard.querySelector('.class-banner');
                                 classBanner.style.background = 'linear-gradient(135deg, #a9a9a9ff 0%, #787878ff 100%)';
@@ -1688,6 +1763,34 @@ try {
                     .catch(error => {
                         console.error('Error unarchiving class:', error);
                         alert('An error occurred while unarchiving the class.');
+                    });
+                });
+        }
+
+        // Function to delete a class (and all related data)
+        function deleteClass(classId) {
+            confirmAction('This will permanently delete the class and all related data. Continue?', { confirmText: 'Delete' })
+                .then((confirmed) => {
+                    if (!confirmed) return;
+                    const formData = new FormData();
+                    formData.append('class_id', classId);
+
+                    fetch('../includes/delete_class.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting class:', error);
+                        alert('An error occurred while deleting the class.');
                     });
                 });
         }

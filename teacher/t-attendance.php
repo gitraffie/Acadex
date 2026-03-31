@@ -770,7 +770,7 @@ try {
                                 <div class="student-info">
                                     <div class="student-avatar">${avatar}</div>
                                     <div class="student-details">
-                                        <div class="student-name">${st.last_name}, ${st.first_name} ${st.middle_initial || ''}</div>
+                                        <div class="student-name">${(st.last_name || '').toUpperCase()}, ${(st.first_name || '').toUpperCase()} ${st.middle_initial ? String(st.middle_initial).trim().charAt(0).toUpperCase() + '.' : ''}</div>
                                         <div class="student-number">${st.student_number}</div>
                                     </div>
                                 </div>
@@ -1216,8 +1216,8 @@ try {
                         data.forEach(classData => {
                             const classCards = document.querySelectorAll('.class-card');
                             classCards.forEach(card => {
-                                const className = card.getAttribute('data-class-name');
-                                if (className === classData.class_name) {
+                            const classId = card.getAttribute('data-class-id');
+                            if (String(classId) === String(classData.id)) {
                                     const statValues = card.querySelectorAll('.class-stat-value');
                                     if (statValues.length >= 2) {
                                         // First stat: student count

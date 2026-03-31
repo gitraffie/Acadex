@@ -184,13 +184,20 @@ function importSpecificTerm($pdo, $class_id, $term, $data, &$errors) {
                 continue;
             }
 
-            $class_standing = validateGrade($class_standing_input);
-            $exam = validateGrade($exam_input);
+            $class_standing_input = trim((string)$class_standing_input);
+            $exam_input = trim((string)$exam_input);
 
-            if ($class_standing === null || $exam === null) {
-                $errors[] = "Row " . ($index + 2) . ": Invalid grade values";
+            if ($class_standing_input !== '' && validateGrade($class_standing_input) === null) {
+                $errors[] = "Row " . ($index + 2) . ": Invalid class standing value";
                 continue;
             }
+            if ($exam_input !== '' && validateGrade($exam_input) === null) {
+                $errors[] = "Row " . ($index + 2) . ": Invalid exam value";
+                continue;
+            }
+
+            $class_standing = $class_standing_input === '' ? null : validateGrade($class_standing_input);
+            $exam = $exam_input === '' ? null : validateGrade($exam_input);
 
             // 1. Insert detailed breakdown into 'grades' table
             importTermGrade($pdo, $class_id, $student_number, $term_cap, $class_standing, $exam, $teacher_email);
@@ -209,7 +216,22 @@ function importSpecificTerm($pdo, $class_id, $term, $data, &$errors) {
             }
 
             // 2. Calculate the single term grade using saved weights
-            $term_grade_val = round(($class_standing * (float)$weights['class_standing']) + ($exam * (float)$weights['exam']), 2);
+            $classStandingValue = 0;
+            if ($class_standing !== null) {
+                $classStandingValue = (float)$class_standing;
+                if ($classStandingValue == 0.0) {
+                    $classStandingValue = 65;
+                }
+            }
+            $examValue = 0;
+            if ($exam !== null) {
+                $examValue = (float)$exam;
+                if ($examValue == 0.0) {
+                    $examValue = 65;
+                }
+            }
+
+            $term_grade_val = round(($classStandingValue * (float)$weights['class_standing']) + ($examValue * (float)$weights['exam']), 2);
 
             // 3. Upsert the specific column in 'calculated_grades'
             // Check if student exists in calculated_grades first

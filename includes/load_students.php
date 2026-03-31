@@ -131,14 +131,20 @@ try {
             echo '<tr>
                     <td>' . htmlspecialchars($student['student_number']) . '</td>
                     <td class="student-name">';
-            $fullNameRaw = trim($student['last_name']) . ', ' . trim($student['first_name']);
+            $lastName = mb_strtoupper(trim((string)$student['last_name']), 'UTF-8');
+            $firstName = mb_strtoupper(trim((string)$student['first_name']), 'UTF-8');
+            $fullNameRaw = $lastName . ', ' . $firstName;
             $fullName = htmlspecialchars($fullNameRaw);
             if (!empty($student['middle_initial'])) {
-                $fullNameRaw .= ' ' . trim($student['middle_initial']) . '.';
-                $fullName = htmlspecialchars($fullNameRaw);
+                $mi = trim($student['middle_initial']);
+                $miInitial = $mi !== '' ? mb_strtoupper(mb_substr($mi, 0, 1, 'UTF-8'), 'UTF-8') : '';
+                if ($miInitial !== '') {
+                    $fullNameRaw .= ' ' . $miInitial . '.';
+                    $fullName = htmlspecialchars($fullNameRaw);
+                }
             }
             if (!empty($student['suffix'])) {
-                $fullNameRaw .= ' ' . trim($student['suffix']);
+                $fullNameRaw .= ' ' . mb_strtoupper(trim((string)$student['suffix']), 'UTF-8');
                 $fullName = htmlspecialchars($fullNameRaw);
             }
             $classList = $student['class_list'] ?? '';

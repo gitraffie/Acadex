@@ -176,10 +176,23 @@ try {
         $gradesRow = $stmt->fetch();
         $class_standing = $gradesRow['class_standing'] ?? null;
         $exam = $gradesRow['exam'] ?? null;
-        $overallGrade = null;
-        if ($class_standing !== null && $class_standing !== '' && $exam !== null && $exam !== '') {
-            $overallGrade = round(($class_standing * 0.7) + ($exam * 0.3), 2);
+        $classStandingValue = 0;
+        if ($class_standing !== null && $class_standing !== '') {
+            $classStandingValue = floatval($class_standing);
+            if ($classStandingValue == 0.0) {
+                $classStandingValue = 65;
+            }
         }
+
+        $examValue = 0;
+        if ($exam !== null && $exam !== '') {
+            $examValue = floatval($exam);
+            if ($examValue == 0.0) {
+                $examValue = 65;
+            }
+        }
+
+        $overallGrade = round(($classStandingValue * 0.7) + ($examValue * 0.3), 2);
 
         //fetch the term column
         $termColumn = strtolower($assessment['term']);

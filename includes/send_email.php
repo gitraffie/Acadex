@@ -1,6 +1,7 @@
 <?php
 session_start();
-ini_set('display_errors', 1);
+// Avoid breaking JSON responses with PHP warnings/notices.
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 include 'connection.php';
 
@@ -87,14 +88,23 @@ function resolveStudentRequest($pdo, $teacher_email, $student_email, $request_ty
 // ---------------- EMAIL FUNCTION ------------------
 
 if (!function_exists('emailTermGrade')) {
+function formatComponentForEmail($value) {
+    if ($value === null || $value === '' || $value === '--') {
+        return '0';
+    }
+    if (is_numeric($value) && floatval($value) == 0.0) {
+        return '65';
+    }
+    return (string)$value;
+}
+
 function emailTermGrade($student_email, $student_name, $class_id, $student_number, $pdo, $teacher_name, $term, $grades, $total_grade) {
     // Fetch class details
     $stmt = $pdo->prepare("SELECT class_name, section, term FROM classes WHERE id = ?");
     $stmt->execute([$class_id]);
     $class_row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$class_row) {
-        echo json_encode(['success' => false, 'message' => 'Class not found']);
-        return;
+        return ['success' => false, 'message' => 'Class not found'];
     }
     $class_name = $class_row['class_name'];
     $section = $class_row['section'];
@@ -106,6 +116,7 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
 
     foreach ($grades as $comp => $value) {
         $label = ucfirst(str_replace('_', ' ', $comp));
+        $displayValue = formatComponentForEmail($value);
 
         if ($firstRow) {
             // First row includes the TERM merged across all rows
@@ -113,7 +124,7 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
                 <tr>
                     <td rowspan='{$componentsCount}' style='vertical-align: middle; font-weight: bold;'>" . ucfirst($term) . "</td>
                     <td>$label</td>
-                    <td>$value</td>
+                    <td>$displayValue</td>
                 </tr>
             ";
             $firstRow = false;
@@ -122,7 +133,7 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
             $rows .= "
                 <tr>
                     <td>$label</td>
-                    <td>$value</td>
+                    <td>$displayValue</td>
                 </tr>
             ";
         }
@@ -159,7 +170,7 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
 
         <table border='1' cellpadding='6' cellspacing='0'>
             <tr>
-                <th>Term</th>
+                <th>Period</th>
                 <th>Component</th>
                 <th>Grade</th>
             </tr>
@@ -192,9 +203,9 @@ function emailTermGrade($student_email, $student_name, $class_id, $student_numbe
         $teacherEmail = $_SESSION['email'] ?? null;
         logEmailSend($pdo, $teacherEmail, $student_email, 'term_grades', $class_id);
         resolveStudentRequest($pdo, $teacherEmail, $student_email, 'grade', $class_id, $term, false);
-        echo json_encode(['success' => true, 'message' => 'Email sent']);
+        return ['success' => true, 'message' => 'Email sent'];
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => $mail->ErrorInfo]);
+        return ['success' => false, 'message' => $mail->ErrorInfo];
     }
 }
 
@@ -204,8 +215,7 @@ function emailSpecificGrade($student_email, $student_name, $class_id, $student_n
     $stmt->execute([$class_id]);
     $class_row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$class_row) {
-        echo json_encode(['success' => false, 'message' => 'Class not found']);
-        return;
+        return ['success' => false, 'message' => 'Class not found'];
     }
     $class_name = $class_row['class_name'];
     $section = $class_row['section'];
@@ -234,12 +244,12 @@ function emailSpecificGrade($student_email, $student_name, $class_id, $student_n
 
     <table border='1' cellpadding='6' cellspacing='0'>
         <tr>
-            <th>Term</th><th>Component</th><th>Grade</th>
+            <th>Period</th><th>Component</th><th>Grade</th>
         </tr>
         <tr>
             <td>" . ucfirst($term) . "</td>
             <td>$normalizedComponent</td>
-            <td>$grade</td>
+            <td>" . formatComponentForEmail($grade) . "</td>
         </tr>
     </table>
 
@@ -269,9 +279,9 @@ function emailSpecificGrade($student_email, $student_name, $class_id, $student_n
         $teacherEmail = $_SESSION['email'] ?? null;
         logEmailSend($pdo, $teacherEmail, $student_email, 'component_grade', $class_id);
         resolveStudentRequest($pdo, $teacherEmail, $student_email, 'grade', $class_id, $term, false);
-        echo json_encode(['success' => true, 'message' => 'Email sent']);
+        return ['success' => true, 'message' => 'Email sent'];
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => $mail->ErrorInfo]);
+        return ['success' => false, 'message' => $mail->ErrorInfo];
     }
 }
 
@@ -281,8 +291,7 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
     $stmt->execute([$class_id]);
     $class_row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$class_row) {
-        echo json_encode(['success' => false, 'message' => 'Class not found']);
-        return;
+        return ['success' => false, 'message' => 'Class not found'];
     }
     $class_name = $class_row['class_name'];
     $section = $class_row['section'];
@@ -290,9 +299,9 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
 
     // Prepare default grade template
     $grades_data = [
-        'prelim' => ['class_standing' => '--', 'exam' => '--', 'term_grade' => '--'],
-        'midterm' => ['class_standing' => '--', 'exam' => '--', 'term_grade' => '--'],
-        'finals' => ['class_standing' => '--', 'exam' => '--', 'term_grade' => '--'],
+        'prelim' => ['class_standing' => '0', 'exam' => '0', 'term_grade' => '--'],
+        'midterm' => ['class_standing' => '0', 'exam' => '0', 'term_grade' => '--'],
+        'finals' => ['class_standing' => '0', 'exam' => '0', 'term_grade' => '--'],
         'final_grade' => '--'
     ];
 
@@ -308,8 +317,8 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
     foreach ($rows as $row) {
         $term = strtolower($row['term']);
         if (isset($grades_data[$term])) {
-            $grades_data[$term]['class_standing'] = $row['class_standing'] ?? '--';
-            $grades_data[$term]['exam'] = $row['exam'] ?? '--';
+            $grades_data[$term]['class_standing'] = formatComponentForEmail($row['class_standing'] ?? null);
+            $grades_data[$term]['exam'] = formatComponentForEmail($row['exam'] ?? null);
         }
     }
 
@@ -352,8 +361,8 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
 
     <table border='1' cellpadding='6' cellspacing='0'>
         <tr>
-            <th>Term</th><th>Class Standing</th><th>Exam</th>
-            <th>Term Grade</th>
+            <th>Period</th><th>Class Standing</th><th>Exam</th>
+            <th>Periodic Average</th>
         </tr>
         <tr>
             <td>Prelim</td>
@@ -405,9 +414,9 @@ function emailStudentReport($student_email, $student_name, $class_id, $student_n
         $teacherEmail = $_SESSION['email'] ?? null;
         logEmailSend($pdo, $teacherEmail, $student_email, 'student_report', $class_id);
         resolveStudentRequest($pdo, $teacherEmail, $student_email, 'grade', $class_id, null, true);
-        echo json_encode(['success' => true, 'message' => 'Email sent']);
+        return ['success' => true, 'message' => 'Email sent'];
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => $mail->ErrorInfo]);
+        return ['success' => false, 'message' => $mail->ErrorInfo];
     }
 }
 
@@ -587,7 +596,8 @@ if ($action === 'email_student_report') {
         exit;
     }
 
-    emailStudentReport($student_email, $student_name, $class_id, $student_number, $pdo, $teacher_name);
+    $result = emailStudentReport($student_email, $student_name, $class_id, $student_number, $pdo, $teacher_name);
+    echo json_encode($result);
     exit;
 }
 
@@ -617,7 +627,8 @@ if ($action == 'email_student_component_grade') {
         exit;
     }
 
-    emailSpecificGrade($student_email, $student_name, $class_id, $student_number, $pdo, $teacher_name, $term, $normalizedComponent, $grade);
+    $result = emailSpecificGrade($student_email, $student_name, $class_id, $student_number, $pdo, $teacher_name, $term, $normalizedComponent, $grade);
+    echo json_encode($result);
     exit;
 }
 
@@ -637,7 +648,215 @@ if ($action == 'email_student_term_grades') {
         exit;
     }
 
-    emailTermGrade($student_email, $student_name, $class_id, $student_number, $pdo, $teacher_name, $term, $grades, $total_grade);
+    $result = emailTermGrade($student_email, $student_name, $class_id, $student_number, $pdo, $teacher_name, $term, $grades, $total_grade);
+    echo json_encode($result);
+    exit;
+}
+
+if ($action === 'email_class_report') {
+    set_time_limit(0);
+    ini_set('max_execution_time', '0');
+    $class_id = $_POST['class_id'] ?? null;
+    $teacher_name = $_POST['teacher_name'] ?? null;
+    $teacher_email = $_SESSION['email'] ?? null;
+
+    if (!$class_id || !$teacher_email) {
+        echo json_encode(['success' => false, 'message' => 'Missing required parameters']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("SELECT id FROM classes WHERE id = ? AND user_email = ?");
+    $stmt->execute([$class_id, $teacher_email]);
+    if (!$stmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Class not found or unauthorized']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT s.student_email, s.first_name, s.last_name, s.student_number
+        FROM students s
+        LEFT JOIN student_classes sc ON sc.student_id = s.id
+        WHERE sc.class_id = ? OR s.class_id = ?
+    ");
+    $stmt->execute([$class_id, $class_id]);
+    $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($students)) {
+        echo json_encode(['success' => false, 'message' => 'No students enrolled in this class']);
+        exit;
+    }
+
+    $sent = 0;
+    $failed = 0;
+    $errors = [];
+    foreach ($students as $student) {
+        if (empty($student['student_email'])) {
+            $failed++;
+            $errors[] = 'Missing email for ' . ($student['student_number'] ?? 'student');
+            continue;
+        }
+        $student_name = trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? ''));
+        $result = emailStudentReport(
+            $student['student_email'],
+            $student_name,
+            $class_id,
+            $student['student_number'],
+            $pdo,
+            $teacher_name
+        );
+        if (!empty($result['success'])) {
+            $sent++;
+        } else {
+            $failed++;
+            if (!empty($result['message'])) {
+                $errors[] = $result['message'];
+            }
+        }
+    }
+
+    $message = "Emailed {$sent} student(s).";
+    if ($failed > 0) {
+        $message .= " Failed: {$failed}.";
+        if (!empty($errors)) {
+            $message .= " First error: " . $errors[0];
+        }
+    }
+    echo json_encode(['success' => $sent > 0, 'message' => $message]);
+    exit;
+}
+
+if ($action === 'email_class_term_grades') {
+    set_time_limit(0);
+    ini_set('max_execution_time', '0');
+    $class_id = $_POST['class_id'] ?? null;
+    $teacher_name = $_POST['teacher_name'] ?? null;
+    $teacher_email = $_SESSION['email'] ?? null;
+    $term = $_POST['term'] ?? null;
+    $component = $_POST['component'] ?? null;
+
+    if (!$class_id || !$teacher_email || !$term) {
+        echo json_encode(['success' => false, 'message' => 'Missing required parameters']);
+        exit;
+    }
+
+    if (!in_array($term, ['prelim', 'midterm', 'finals'], true)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid term']);
+        exit;
+    }
+
+    if ($component && !in_array($component, ['class_standing', 'exam'], true)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid component']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("SELECT id FROM classes WHERE id = ? AND user_email = ?");
+    $stmt->execute([$class_id, $teacher_email]);
+    if (!$stmt->fetch()) {
+        echo json_encode(['success' => false, 'message' => 'Class not found or unauthorized']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT s.student_email, s.first_name, s.last_name, s.student_number
+        FROM students s
+        LEFT JOIN student_classes sc ON sc.student_id = s.id
+        WHERE sc.class_id = ? OR s.class_id = ?
+    ");
+    $stmt->execute([$class_id, $class_id]);
+    $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($students)) {
+        echo json_encode(['success' => false, 'message' => 'No students enrolled in this class']);
+        exit;
+    }
+
+    $gradesStmt = $pdo->prepare("
+        SELECT student_number, class_standing, exam
+        FROM grades
+        WHERE class_id = ? AND term = ?
+    ");
+    $gradesStmt->execute([$class_id, $term]);
+    $gradesMap = [];
+    foreach ($gradesStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $gradesMap[$row['student_number']] = $row;
+    }
+
+    $calcStmt = $pdo->prepare("
+        SELECT student_number, prelim, midterm, finals
+        FROM calculated_grades
+        WHERE class_id = ?
+    ");
+    $calcStmt->execute([$class_id]);
+    $calcMap = [];
+    foreach ($calcStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $calcMap[$row['student_number']] = $row;
+    }
+
+    $sent = 0;
+    $failed = 0;
+    $errors = [];
+    foreach ($students as $student) {
+        if (empty($student['student_email'])) {
+            $failed++;
+            $errors[] = 'Missing email for ' . ($student['student_number'] ?? 'student');
+            continue;
+        }
+
+        $student_number = $student['student_number'];
+        $student_name = trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? ''));
+        $gradeRow = $gradesMap[$student_number] ?? ['class_standing' => null, 'exam' => null];
+
+        if ($component) {
+            $normalizedComponent = $component === 'class_standing' ? 'Class Standing' : 'Exam';
+            $gradeValue = $gradeRow[$component] ?? null;
+            $result = emailSpecificGrade(
+                $student['student_email'],
+                $student_name,
+                $class_id,
+                $student_number,
+                $pdo,
+                $teacher_name,
+                $term,
+                $normalizedComponent,
+                $gradeValue
+            );
+        } else {
+            $gradesPayload = [
+                'class_standing' => $gradeRow['class_standing'] ?? null,
+                'exam' => $gradeRow['exam'] ?? null
+            ];
+            $termGrade = isset($calcMap[$student_number]) ? ($calcMap[$student_number][$term] ?? '--') : '--';
+            $result = emailTermGrade(
+                $student['student_email'],
+                $student_name,
+                $class_id,
+                $student_number,
+                $pdo,
+                $teacher_name,
+                $term,
+                $gradesPayload,
+                $termGrade
+            );
+        }
+
+        if (!empty($result['success'])) {
+            $sent++;
+        } else {
+            $failed++;
+            if (!empty($result['message'])) {
+                $errors[] = $result['message'];
+            }
+        }
+    }
+
+    $message = "Emailed {$sent} student(s).";
+    if ($failed > 0) {
+        $message .= " Failed: {$failed}.";
+        if (!empty($errors)) {
+            $message .= " First error: " . $errors[0];
+        }
+    }
+    echo json_encode(['success' => $sent > 0, 'message' => $message]);
     exit;
 }
 

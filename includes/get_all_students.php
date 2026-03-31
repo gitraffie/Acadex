@@ -31,7 +31,12 @@ try {
     // Format students data with full_name
     $students = [];
     foreach ($rawStudents as $student) {
-        $fullName = trim($student['first_name'] . ' ' . ($student['middle_initial'] ? $student['middle_initial'] . ' ' : '') . $student['last_name'] . ($student['suffix'] ? ' ' . $student['suffix'] : ''));
+        $mi = trim((string)($student['middle_initial'] ?? ''));
+        $miInitial = $mi !== '' ? mb_strtoupper(mb_substr($mi, 0, 1, 'UTF-8'), 'UTF-8') : '';
+        $firstName = mb_strtoupper(trim((string)$student['first_name']), 'UTF-8');
+        $lastName = mb_strtoupper(trim((string)$student['last_name']), 'UTF-8');
+        $suffix = !empty($student['suffix']) ? ' ' . mb_strtoupper(trim((string)$student['suffix']), 'UTF-8') : '';
+        $fullName = trim($firstName . ' ' . ($miInitial ? $miInitial . ' ' : '') . $lastName . $suffix);
         $students[] = [
             'id' => $student['id'],
             'class_count' => (int)($student['class_count'] ?? 0),

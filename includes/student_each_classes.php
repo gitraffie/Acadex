@@ -21,7 +21,7 @@ if (empty($userEmail)) {
 try {
     // Query to get each class for the current user, count students, and count present students today (across all sessions)
     $stmt = $pdo->prepare("
-        SELECT c.class_name, COUNT(DISTINCT sc.student_id) AS student_count, COUNT(DISTINCT a.student_id) AS present_count
+        SELECT c.id, c.class_name, COUNT(DISTINCT sc.student_id) AS student_count, COUNT(DISTINCT a.student_id) AS present_count
         FROM classes c
         LEFT JOIN student_classes sc
             ON c.id = sc.class_id

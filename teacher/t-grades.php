@@ -261,6 +261,21 @@ try {
                                 </div>
                             </div>
                         </div>
+                        <div class="export-menu">
+                            <button class="grade-btn" onclick="toggleBulkEmailMenu()">
+                                <i class="fas fa-envelope"></i> Email
+                            </button>
+                            <div class="export-dropdown" id="bulkEmailDropdown">
+                                <div class="export-option" onclick="sendBulkEmailAllGrades()">
+                                    <i class="fas fa-paper-plane"></i>
+                                    <span>Email All Grades (GWA)</span>
+                                </div>
+                                <div class="export-option" onclick="openBulkEmailModal()">
+                                    <i class="fas fa-filter"></i>
+                                    <span>Email Term/Component</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Grade Tabs -->
@@ -555,6 +570,40 @@ try {
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeEmailModal()">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="sendSelectedGradeEmail()">Send Grade</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Email Grades Modal -->
+    <div id="bulkEmailModal" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2>Bulk Email Grades</h2>
+                <button class="close-btn" onclick="closeBulkEmailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; color: #666;">Send a specific term or component grade to all students in the selected class.</p>
+                <div class="form-group">
+                    <label for="bulkEmailTerm">Select Term</label>
+                    <select id="bulkEmailTerm" required>
+                        <option value="">Select Term</option>
+                        <option value="prelim">Prelim</option>
+                        <option value="midterm">Midterm</option>
+                        <option value="finals">Finals</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="bulkEmailComponent">Select Component (Optional)</label>
+                    <select id="bulkEmailComponent">
+                        <option value="">All Components</option>
+                        <option value="class_standing">Class Standing</option>
+                        <option value="exam">Exam</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeBulkEmailModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="sendBulkEmailTermComponent()">Send</button>
             </div>
         </div>
     </div>
@@ -1151,6 +1200,7 @@ try {
 
         // Grade Management Functions
         let currentClassId = null;
+        const teacherName = <?php echo json_encode($userFullName); ?>;
         let currentStudents = [];
         let filteredStudents = [];
         let currentPage = 1;
@@ -1325,18 +1375,22 @@ try {
 
 
         function formatStudentName(student) {
-            const middle = student.middle_initial ? ` ${student.middle_initial}.` : '';
-            const suffix = student.suffix ? ` ${student.suffix}` : '';
-            return `${student.last_name}, ${student.first_name}${middle}${suffix}`;
+            const first = (student.first_name || '').toUpperCase();
+            const last = (student.last_name || '').toUpperCase();
+            const suffixRaw = (student.suffix || '').toUpperCase();
+            const middleInitial = student.middle_initial ? String(student.middle_initial).trim().charAt(0).toUpperCase() : '';
+            const middle = middleInitial ? ` ${middleInitial}.` : '';
+            const suffix = suffixRaw ? ` ${suffixRaw}` : '';
+            return `${last}, ${first}${middle}${suffix}`;
         }
 
         function formatTermGradeDisplay(value) {
             if (value === null || value === undefined || value === '') {
-                return 'Incomplete';
+                return '0.00';
             }
             const numeric = parseFloat(value);
             if (Number.isNaN(numeric)) {
-                return 'Incomplete';
+                return '0.00';
             }
             return numeric.toFixed(2);
         }
@@ -1397,15 +1451,26 @@ try {
             if (nextBtn) nextBtn.disabled = currentPage === totalPages;
         }
 
+        function normalizeComponentForCalc(value) {
+            if (value === null || value === undefined || value === '') {
+                return 0;
+            }
+            const numeric = parseFloat(value);
+            if (Number.isNaN(numeric)) {
+                return 0;
+            }
+            if (numeric === 0) {
+                return 65;
+            }
+            return numeric;
+        }
+
         function calculateFinalGrade(grades) {
             const classStanding = grades?.class_standing ?? grades?.classStanding ?? grades?.classStandingScore;
             const exam = grades?.exam ?? grades?.examScore;
-            const hasClassStanding = classStanding !== null && classStanding !== undefined && classStanding !== '' && !Number.isNaN(parseFloat(classStanding));
-            const hasExam = exam !== null && exam !== undefined && exam !== '' && !Number.isNaN(parseFloat(exam));
-            if (!hasClassStanding || !hasExam) {
-                return 'Incomplete';
-            }
-            const total = (parseFloat(classStanding) * weights.class_standing) + (parseFloat(exam) * weights.exam);
+            const classStandingValue = normalizeComponentForCalc(classStanding);
+            const examValue = normalizeComponentForCalc(exam);
+            const total = (classStandingValue * weights.class_standing) + (examValue * weights.exam);
             return Math.round(total);
         }
 
@@ -1789,12 +1854,9 @@ try {
 
         // Helper function to calculate grade
         function calculateGrade(classStanding, exam) {
-            const hasClassStanding = classStanding !== null && classStanding !== undefined && classStanding !== '' && !Number.isNaN(parseFloat(classStanding));
-            const hasExam = exam !== null && exam !== undefined && exam !== '' && !Number.isNaN(parseFloat(exam));
-            if (!hasClassStanding || !hasExam) {
-                return 'Incomplete';
-            }
-            const total = (parseFloat(classStanding) * weights.class_standing) + (parseFloat(exam) * weights.exam);
+            const classStandingValue = normalizeComponentForCalc(classStanding);
+            const examValue = normalizeComponentForCalc(exam);
+            const total = (classStandingValue * weights.class_standing) + (examValue * weights.exam);
             return total.toFixed(2);
         }
 
@@ -2012,7 +2074,7 @@ try {
         function showGWASummary(student, grades) {
             const summaryHtml = `
                 <div style="text-align: center; margin-bottom: 2rem;">
-                    <h3 style="color: #667eea; margin-bottom: 0.5rem;">${student.first_name} ${student.last_name}</h3>
+                    <h3 style="color: #667eea; margin-bottom: 0.5rem;">${(student.first_name || '').toUpperCase()} ${(student.last_name || '').toUpperCase()}</h3>
                     <p style="color: #666; font-size: 0.9rem;">Student Number: ${student.student_number}</p>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
@@ -2049,9 +2111,11 @@ try {
                 return;
             }
 
+            const student = currentStudents.find(s => s.id == studentId);
+            const studentName = student ? `${(student.first_name || '').toUpperCase()} ${(student.last_name || '').toUpperCase()}`.trim() : '';
             Swal.fire({
                 title: 'Sending email...',
-                text: 'Please wait while we send the grade report.',
+                text: studentName ? `Please wait while we send the grade report to ${studentName}.` : 'Please wait while we send the grade report.',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -2059,7 +2123,6 @@ try {
             });
 
             // Find the student details
-            const student = currentStudents.find(s => s.id == studentId);
             if (!student) {
                 Swal.close();
                 alert('Student not found.');
@@ -2075,7 +2138,7 @@ try {
                     body: new URLSearchParams({
                         'action': 'email_student_report',
                         'student_email': student.student_email,
-                        'student_name': student.first_name + ' ' + student.last_name,
+                        'student_name': studentName || (student.first_name + ' ' + student.last_name),
                         'class_id': currentClassId,
                         'student_number': student.student_number,
                         'teacher_name': '<?php echo htmlspecialchars($userFullName); ?>'
@@ -2105,9 +2168,11 @@ try {
                 return;
             }
 
+            const firstName = (student.first_name || '').toUpperCase();
+            const lastName = (student.last_name || '').toUpperCase();
             document.getElementById('emailStudentId').value = studentId;
-            document.getElementById('emailStudentName').textContent = student.first_name + ' ' + student.last_name;
-            document.getElementById('emailStudentNameHeader').textContent = student.first_name;
+            document.getElementById('emailStudentName').textContent = (firstName + ' ' + lastName).trim();
+            document.getElementById('emailStudentNameHeader').textContent = firstName || '--';
             document.getElementById('emailStudentEmail').textContent = student.student_email;
             document.getElementById('emailTerm').value = "";
             document.getElementById('emailComponent').value = "";
@@ -2684,6 +2749,133 @@ try {
             dropdown.classList.toggle('active');
         }
 
+        function toggleBulkEmailMenu() {
+            const dropdown = document.getElementById('bulkEmailDropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        function closeBulkEmailMenu() {
+            const dropdown = document.getElementById('bulkEmailDropdown');
+            if (dropdown) {
+                dropdown.classList.remove('active');
+            }
+        }
+
+        function openBulkEmailModal() {
+            closeBulkEmailMenu();
+            document.getElementById('bulkEmailTerm').value = '';
+            document.getElementById('bulkEmailComponent').value = '';
+            document.getElementById('bulkEmailModal').style.display = 'flex';
+        }
+
+        function closeBulkEmailModal() {
+            document.getElementById('bulkEmailModal').style.display = 'none';
+        }
+
+        function sendBulkEmailAllGrades() {
+            closeBulkEmailMenu();
+            if (!currentClassId) {
+                alert('Please select a class first.');
+                return;
+            }
+
+            confirmAction('Email all grades (including GWA) to every student in this class?', { confirmText: 'Send' })
+                .then((confirmed) => {
+                    if (!confirmed) return;
+
+                    const formData = new FormData();
+                    formData.append('action', 'email_class_report');
+                    formData.append('class_id', currentClassId);
+                    formData.append('teacher_name', teacherName);
+
+                    Swal.fire({
+                        title: 'Sending emails...',
+                        text: 'Please wait while we email all grade reports.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    fetch('../includes/send_email.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        Swal.close();
+                        if (result.success) {
+                            alert(result.message);
+                        } else {
+                            alert('Failed to send emails: ' + result.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error sending bulk emails:', error);
+                        Swal.close();
+                        alert('An error occurred while sending emails.');
+                    });
+                });
+        }
+
+        function sendBulkEmailTermComponent() {
+            if (!currentClassId) {
+                alert('Please select a class first.');
+                return;
+            }
+
+            const term = document.getElementById('bulkEmailTerm').value;
+            const component = document.getElementById('bulkEmailComponent').value;
+            if (!term) {
+                alert('Please select a term.');
+                return;
+            }
+
+            const label = component ? `${term} (${component === 'class_standing' ? 'Class Standing' : 'Exam'})` : `${term} (All Components)`;
+            confirmAction(`Email ${label} grades to all students?`, { confirmText: 'Send' })
+                .then((confirmed) => {
+                    if (!confirmed) return;
+                    closeBulkEmailModal();
+
+                    const formData = new FormData();
+                    formData.append('action', 'email_class_term_grades');
+                    formData.append('class_id', currentClassId);
+                    formData.append('term', term);
+                    if (component) {
+                        formData.append('component', component);
+                    }
+                    formData.append('teacher_name', teacherName);
+
+                    Swal.fire({
+                        title: 'Sending emails...',
+                        text: 'Please wait while we email grades to all students.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    fetch('../includes/send_email.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        Swal.close();
+                        if (result.success) {
+                            alert(result.message);
+                        } else {
+                            alert('Failed to send emails: ' + result.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error sending bulk term/component emails:', error);
+                        Swal.close();
+                        alert('An error occurred while sending emails.');
+                    });
+                });
+        }
+
         // Filter students based on search and grade filter
         function filterStudents(preservePage = false) {
             const searchInput = document.getElementById('studentSearch').value.toLowerCase();
@@ -2730,6 +2922,13 @@ try {
                     modal.style.display = 'none';
                 }
             });
+
+            if (!event.target.closest('.export-menu')) {
+                const exportDropdown = document.getElementById('exportDropdown');
+                const bulkDropdown = document.getElementById('bulkEmailDropdown');
+                if (exportDropdown) exportDropdown.classList.remove('active');
+                if (bulkDropdown) bulkDropdown.classList.remove('active');
+            }
         });
 
         // Assessment Management Functions

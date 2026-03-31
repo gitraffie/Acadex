@@ -72,14 +72,18 @@ try {
         $term = $record['term'];
         $classStandingRaw = $record['class_standing'];
         $examRaw = $record['exam'];
-        $classStanding = ($classStandingRaw === null || $classStandingRaw === '') ? null : floatval($classStandingRaw);
-        $exam = ($examRaw === null || $examRaw === '') ? null : floatval($examRaw);
+        $classStanding = ($classStandingRaw === null || $classStandingRaw === '') ? 0 : floatval($classStandingRaw);
+        $exam = ($examRaw === null || $examRaw === '') ? 0 : floatval($examRaw);
 
-        // Calculate total grade only if both components are provided (0 is valid)
-        $totalGrade = null;
-        if ($classStanding !== null && $exam !== null) {
-            $totalGrade = ($classStanding * $classStandingWeight) + ($exam * $examWeight);
+        if ($classStandingRaw !== null && $classStandingRaw !== '' && $classStanding == 0.0) {
+            $classStanding = 65;
         }
+        if ($examRaw !== null && $examRaw !== '' && $exam == 0.0) {
+            $exam = 65;
+        }
+
+        // Calculate total grade (void => 0, zero => 65)
+        $totalGrade = ($classStanding * $classStandingWeight) + ($exam * $examWeight);
 
         // Map term to column name
         $termColumn = '';

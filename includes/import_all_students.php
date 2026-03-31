@@ -60,6 +60,14 @@ try {
     $students = [];
     $errors = [];
 
+    $normalizeName = function ($value) {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return '';
+        }
+        return mb_strtoupper($value, 'UTF-8');
+    };
+
     if ($fileExtension === 'csv') {
         // Parse CSV
         if (($handle = fopen($fileTmpName, 'r')) !== false) {
@@ -100,10 +108,10 @@ try {
 
                 $studentNumber = trim($data[$columnMap['Student Number']] ?? '');
                 $studentEmail = trim($data[$columnMap['Email']] ?? '');
-                $firstName = trim($data[$columnMap['First Name']] ?? '');
-                $lastName = trim($data[$columnMap['Last Name']] ?? '');
-                $middleInitial = $columnMap['Middle Initial'] !== null ? trim($data[$columnMap['Middle Initial']] ?? '') : '';
-                $suffix = $columnMap['Suffix'] !== null ? trim($data[$columnMap['Suffix']] ?? '') : '';
+                $firstName = $normalizeName($data[$columnMap['First Name']] ?? '');
+                $lastName = $normalizeName($data[$columnMap['Last Name']] ?? '');
+                $middleInitial = $columnMap['Middle Initial'] !== null ? $normalizeName($data[$columnMap['Middle Initial']] ?? '') : '';
+                $suffix = $columnMap['Suffix'] !== null ? $normalizeName($data[$columnMap['Suffix']] ?? '') : '';
                 $program = $columnMap['Program'] !== null ? trim($data[$columnMap['Program']] ?? '') : '';
 
                 if (empty($studentNumber) || empty($firstName) || empty($lastName)) {

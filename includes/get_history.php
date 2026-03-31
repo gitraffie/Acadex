@@ -36,11 +36,16 @@ try {
         exit();
     }
 
+    $mi = trim((string)($student['middle_initial'] ?? ''));
+    $miInitial = $mi !== '' ? mb_strtoupper(mb_substr($mi, 0, 1, 'UTF-8'), 'UTF-8') : '';
+    $firstName = mb_strtoupper(trim((string)$student['first_name']), 'UTF-8');
+    $lastName = mb_strtoupper(trim((string)$student['last_name']), 'UTF-8');
+    $suffix = !empty($student['suffix']) ? ' ' . mb_strtoupper(trim((string)$student['suffix']), 'UTF-8') : '';
     $fullName = trim(
-        $student['first_name'] . ' ' .
-        (!empty($student['middle_initial']) ? $student['middle_initial'] . '. ' : '') .
-        $student['last_name'] .
-        (!empty($student['suffix']) ? ' ' . $student['suffix'] : '')
+        $firstName . ' ' .
+        (!empty($miInitial) ? $miInitial . '. ' : '') .
+        $lastName .
+        $suffix
     );
 
     $stmt = $pdo->prepare("

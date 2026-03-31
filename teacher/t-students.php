@@ -111,6 +111,9 @@ include '../includes/teacher_requests.php';
                 <button class="action-btn" onclick="openImportModal()">
                     <i class="fas fa-upload"></i> Import Students
                 </button>
+                <button class="action-btn" onclick="deleteAllStudents()" style="background: linear-gradient(135deg, #d9534f 0%, #b52b27 100%);">
+                    <i class="fas fa-trash"></i> Delete All Students
+                </button>
                 <div class="notification-wrapper">
                     <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
                         <i class="fas fa-bell"></i>
@@ -649,13 +652,18 @@ include '../includes/teacher_requests.php';
             const modal = document.getElementById('editStudentModal');
             if (!modal || !button) return;
 
+            const firstName = (button.dataset.firstName || '').toUpperCase();
+            const lastName = (button.dataset.lastName || '').toUpperCase();
+            const middleName = (button.dataset.middleInitial || '').toUpperCase();
+            const suffix = (button.dataset.suffix || '').toUpperCase();
+
             document.getElementById('editStudentId').value = button.dataset.studentId || '';
             document.getElementById('editStudentClassId').value = button.dataset.primaryClassId || '';
             document.getElementById('editStudentNumber').value = button.dataset.studentNumber || '';
-            document.getElementById('editFirstName').value = button.dataset.firstName || '';
-            document.getElementById('editLastName').value = button.dataset.lastName || '';
-            document.getElementById('editMiddleInitial').value = button.dataset.middleInitial || '';
-            document.getElementById('editSuffix').value = button.dataset.suffix || '';
+            document.getElementById('editFirstName').value = firstName;
+            document.getElementById('editLastName').value = lastName;
+            document.getElementById('editMiddleInitial').value = middleName;
+            document.getElementById('editSuffix').value = suffix;
             document.getElementById('editEmail').value = button.dataset.email || '';
             document.getElementById('editProgram').value = button.dataset.program || '';
 
@@ -792,7 +800,96 @@ include '../includes/teacher_requests.php';
             });
         }
 
+        function deleteAllStudents() {
+            const searchTerm = searchInput.value.trim();
+            const classId = classFilter.value;
+
+            confirmAction('This will permanently delete all students in the current list. Continue?', {
+                title: 'Delete All Students',
+                confirmText: 'Delete All',
+                cancelText: 'Cancel',
+                icon: 'warning'
+            }).then((confirmed) => {
+                if (!confirmed) return;
+
+                const formData = new FormData();
+                if (searchTerm) formData.append('search', searchTerm);
+                if (classId !== '') formData.append('class_id', classId);
+
+                Swal.fire({
+                    title: 'Deleting students...',
+                    text: 'Please wait while we remove the students.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                fetch('../includes/delete_all_students.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    Swal.close();
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Students Deleted',
+                            text: data.message,
+                            icon: 'success',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#667eea',
+                            timer: 2500,
+                            timerProgressBar: true
+                        }).then(() => {
+                            loadStudents(1);
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Delete Failed',
+                            text: data.message,
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting students:', error);
+                    Swal.close();
+                    Swal.fire('Error', 'An error occurred while deleting the students', 'error');
+                });
+            });
+        }
+
         // Import students function
+        function bindUppercaseInput(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            input.addEventListener('input', () => {
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                input.value = input.value.toUpperCase();
+                if (start !== null && end !== null) {
+                    input.setSelectionRange(start, end);
+                }
+            });
+        }
+
+        function initNameAutoUppercase() {
+            [
+                'firstName',
+                'lastName',
+                'middleInitial',
+                'suffix',
+                'editFirstName',
+                'editLastName',
+                'editMiddleInitial',
+                'editSuffix'
+            ].forEach(bindUppercaseInput);
+        }
+
+        document.addEventListener('DOMContentLoaded', initNameAutoUppercase);
+
         function importStudents() {
             console.log('Starting importStudents function');
             const form = document.getElementById('importForm');
@@ -920,8 +1017,8 @@ include '../includes/teacher_requests.php';
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="middleInitial">Middle Initial</label>
-                        <input type="text" id="middleInitial" name="middleInitial" maxlength="5">
+                        <label for="middleInitial">Middle Name</label>
+                        <input type="text" id="middleInitial" name="middleInitial" maxlength="50">
                     </div>
                     <div class="form-group">
                         <label for="suffix">Suffix</label>
@@ -983,8 +1080,8 @@ include '../includes/teacher_requests.php';
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="editMiddleInitial">Middle Initial</label>
-                        <input type="text" id="editMiddleInitial" name="middle_initial" maxlength="5">
+                        <label for="editMiddleInitial">Middle Name</label>
+                        <input type="text" id="editMiddleInitial" name="middle_initial" maxlength="50">
                     </div>
                     <div class="form-group">
                         <label for="editSuffix">Suffix</label>
@@ -1040,12 +1137,6 @@ include '../includes/teacher_requests.php';
     </div>
 </body>
 </html>
-
-
-
-
-
-
 
 
 

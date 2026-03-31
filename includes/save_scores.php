@@ -106,15 +106,24 @@ try {
         ];
     }
 
-    // Calculate final grade only if both components are provided and > 0
-    $has_class_standing = $class_standing !== null && $class_standing !== '';
-    $has_exam = $exam !== null && $exam !== '';
-    $final_grade = null;
-    if ($has_class_standing && $has_exam) {
-        $final_grade = (float)$class_standing * (float)$weights['class_standing'];
-        $final_grade += (float)$exam * (float)$weights['exam'];
-        $final_grade = round($final_grade, 2);
+    $class_standing_value = 0;
+    if ($class_standing !== null && $class_standing !== '') {
+        $class_standing_value = floatval($class_standing);
+        if ($class_standing_value == 0.0) {
+            $class_standing_value = 65;
+        }
     }
+
+    $exam_value = 0;
+    if ($exam !== null && $exam !== '') {
+        $exam_value = floatval($exam);
+        if ($exam_value == 0.0) {
+            $exam_value = 65;
+        }
+    }
+
+    $final_grade = ($class_standing_value * (float)$weights['class_standing']) + ($exam_value * (float)$weights['exam']);
+    $final_grade = round($final_grade, 2);
 
     // Check if record exists in calculated_grades
     $stmt = $pdo->prepare("SELECT id FROM calculated_grades WHERE class_id = ? AND student_number = ?");
