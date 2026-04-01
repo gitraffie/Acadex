@@ -138,7 +138,7 @@ try {
     echo "<th colspan='3'>Prelim</th>";
     echo "<th colspan='3'>Midterm</th>";
     echo "<th colspan='3'>Finals</th>";
-    echo "<th rowspan='2'>Final Grade</th>";
+    echo "<th rowspan='2'>Average</th>";
     echo "</tr>";
     echo "<tr class='header'>";
     echo "<th>Class Standing (70%)</th>";

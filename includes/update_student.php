@@ -19,10 +19,10 @@ $student_id = $_POST['student_id'] ?? '';
 $class_id = $_POST['class_id'] ?? '';
 $student_number = $_POST['student_number'] ?? '';
 $email = $_POST['email'] ?? '';
-$first_name = $_POST['first_name'] ?? '';
-$last_name = $_POST['last_name'] ?? '';
-$middle_initial = $_POST['middle_initial'] ?? '';
-$suffix = $_POST['suffix'] ?? '';
+$first_name = strtoupper(trim($_POST['first_name'] ?? ''));
+$last_name = strtoupper(trim($_POST['last_name'] ?? ''));
+$middle_initial = strtoupper(trim($_POST['middle_initial'] ?? ''));
+$suffix = strtoupper(trim($_POST['suffix'] ?? ''));
 $program = $_POST['program'] ?? '';
 
 if (empty($student_id) || empty($student_number) || empty($email) || empty($first_name) || empty($last_name) || empty($program)) {

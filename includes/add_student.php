@@ -19,10 +19,10 @@ try {
     // Get form data
     $studentNumber = trim($_POST['studentNumber'] ?? '');
     $email = trim($_POST['email'] ?? '');
-    $firstName = trim($_POST['firstName'] ?? '');
-    $lastName = trim($_POST['lastName'] ?? '');
-    $middleInitial = trim($_POST['middleInitial'] ?? '');
-    $suffix = trim($_POST['suffix'] ?? '');
+    $firstName = strtoupper(trim($_POST['firstName'] ?? ''));
+    $lastName = strtoupper(trim($_POST['lastName'] ?? ''));
+    $middleInitial = strtoupper(trim($_POST['middleInitial'] ?? ''));
+    $suffix = strtoupper(trim($_POST['suffix'] ?? ''));
     $program = trim($_POST['program'] ?? '');
     $classId = $_POST['classId'] ?? null; // This should be passed from the frontend
     $classId = ($classId !== null && $classId !== '' && $classId !== '0') ? (int)$classId : 0;
