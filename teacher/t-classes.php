@@ -1504,8 +1504,10 @@ try {
                     closeAddStudentModal();
                     fileInput.value = '';
                     resetFileUploadUI();
-                    // Optionally refresh the page or update the student list
-                    location.reload();
+                    // Reload while preserving selected class
+                    const targetUrl = new URL(window.location.href);
+                    targetUrl.searchParams.set('class_id', classId);
+                    window.location.href = targetUrl.toString();
                 } else {
                     alert(data.message);
                     resetFileUploadUI();

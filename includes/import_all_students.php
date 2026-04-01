@@ -150,11 +150,23 @@ try {
     $pdo->beginTransaction();
     $inserted = 0;
     $duplicates = 0;
+    $seenStudentNumbers = [];
 
     foreach ($students as $student) {
+        $studentNumberKey = trim((string)$student['student_number']);
+        if ($studentNumberKey === '') {
+            $duplicates++;
+            continue;
+        }
+        if (isset($seenStudentNumbers[$studentNumberKey])) {
+            $duplicates++;
+            continue;
+        }
+        $seenStudentNumbers[$studentNumberKey] = true;
+
         // Find or create student
         $stmt = $pdo->prepare("SELECT id FROM students WHERE student_number = ? LIMIT 1");
-        $stmt->execute([$student['student_number']]);
+        $stmt->execute([$studentNumberKey]);
         $existingStudent = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($existingStudent) {
@@ -165,7 +177,7 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
             ");
             $stmt->execute([
-                $student['student_number'],
+                $studentNumberKey,
                 $student['student_email'],
                 $student['first_name'],
                 $student['last_name'],
@@ -178,6 +190,12 @@ try {
         }
 
         // Enroll student in class
+        $existsEnroll = $pdo->prepare("SELECT 1 FROM student_classes WHERE student_id = ? AND class_id = ? LIMIT 1");
+        $existsEnroll->execute([$studentId, $classId]);
+        if ($existsEnroll->fetchColumn()) {
+            $duplicates++;
+            continue;
+        }
         $enrollStmt = $pdo->prepare("INSERT IGNORE INTO student_classes (student_id, class_id) VALUES (?, ?)");
         $enrollStmt->execute([$studentId, $classId]);
         if ($enrollStmt->rowCount() > 0) {

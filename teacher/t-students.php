@@ -105,15 +105,6 @@ include '../includes/teacher_requests.php';
                 <h1>My Students</h1>
             </div>
             <div class="top-actions">
-                <button class="action-btn" onclick="openAddStudentModal()">
-                    <i class="fas fa-plus"></i> Add Student
-                </button>
-                <button class="action-btn" onclick="openImportModal()">
-                    <i class="fas fa-upload"></i> Import Students
-                </button>
-                <button class="action-btn" onclick="deleteAllStudents()" style="background: linear-gradient(135deg, #d9534f 0%, #b52b27 100%);">
-                    <i class="fas fa-trash"></i> Delete All Students
-                </button>
                 <div class="notification-wrapper">
                     <button class="notification-btn" id="notificationBtn" aria-expanded="false" aria-controls="notificationMenu">
                         <i class="fas fa-bell"></i>
@@ -191,6 +182,18 @@ include '../includes/teacher_requests.php';
                     <option value="0">No Class</option>
                 </select>
             </div>
+        </div>
+
+        <div class="action-buttons-container">
+            <button class="action-btn" onclick="openAddStudentModal()">
+                <i class="fas fa-plus"></i> Add Student
+            </button>
+            <button class="action-btn" onclick="openImportModal()">
+                <i class="fas fa-upload"></i> Import Students
+            </button>
+            <button class="action-btn action-btn-danger" onclick="deleteAllStudents()">
+                <i class="fas fa-trash"></i> Delete All Students
+            </button>
         </div>
 
         <!-- Students List -->
@@ -451,6 +454,27 @@ include '../includes/teacher_requests.php';
 
         // Call the truncate function on page load
         truncateUserInfo();
+        showStudentsReloadLoaderIfNeeded();
+
+        function showStudentsReloadLoaderIfNeeded() {
+            const shouldShow = sessionStorage.getItem('studentsReloadLoader') === '1';
+            if (!shouldShow) return;
+
+            Swal.fire({
+                title: 'Rendering Students Data, Please Wait',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        }
+
+        window.addEventListener('load', () => {
+            if (sessionStorage.getItem('studentsReloadLoader') === '1') {
+                sessionStorage.removeItem('studentsReloadLoader');
+                Swal.close();
+            }
+        });
 
         // Load classes for filter dropdown
         loadClassesForFilter();
@@ -954,6 +978,14 @@ include '../includes/teacher_requests.php';
                         console.log('Modal closed and form reset');
                         // Reload students list
                         console.log('Reloading page to refresh students list');
+                        Swal.fire({
+                            title: 'Rendering Students Data, Please Wait',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        sessionStorage.setItem('studentsReloadLoader', '1');
                         location.reload();
                     });
                 } else {
@@ -1137,8 +1169,3 @@ include '../includes/teacher_requests.php';
     </div>
 </body>
 </html>
-
-
-
-
-
